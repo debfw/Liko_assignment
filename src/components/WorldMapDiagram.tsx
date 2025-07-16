@@ -283,6 +283,14 @@ export default function WorldMapDiagram() {
       const linkDataArray = createShippingLinks(cities);
 
       diagram.model = new go.GraphLinksModel(nodeDataArray, linkDataArray);
+      diagram.links.each((link) => {
+        const goLink = link as go.Link;
+        const linkShape = goLink.findObject("LINKSHAPE") as go.Shape;
+        if (linkShape) {
+          linkShape.opacity = linkOpacity;
+          goLink.data.opacity = linkOpacity;
+        }
+      });
     } catch (error) {
       console.error("Error loading city data:", error);
     }
