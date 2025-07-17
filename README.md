@@ -1,36 +1,137 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# World Shipping Network Visualization
 
-## Getting Started
+An interactive visualization of global shipping connections between major cities using Next.js, GoJS, and Mantine UI.
 
-First, run the development server:
+## Features
+
+- **Interactive World Map**: Visualize shipping routes between major cities worldwide
+- **GoJS Diagram Tools** (controlled via toolbar buttons):
+  - **Dragging Tool**: When enabled, move nodes freely around the diagram
+  - **Linking Tool**: When enabled, create new shipping routes by dragging between nodes
+  - **Relinking Tool**: When enabled, modify existing routes by dragging link endpoints
+- **Dynamic Node Sizing**: Nodes scale based on city population with real-time resize controls
+- **Multiple Shipping Methods**: Different visual styles for truck, air, and ship routes
+- **Advanced Filtering**: Filter by region, search cities, and filter by shipping method
+- **Dark Theme**: Modern dark interface with high contrast colors
+- **Responsive Controls**: Intuitive sliders for node size and link opacity
+- **Context Menus**: Right-click functionality for nodes and links
+- **Auto-save**: State persistence using Zustand store
+- **Performance Optimized**: Efficient rendering with GoJS diagram optimizations
+
+## Prerequisites
+
+- Node.js 16.x or higher
+- npm or yarn package manager
+
+## Installation
+
+1. Clone the repository:
+
+```bash
+git clone <repository-url>
+cd Liko_Assignment
+```
+
+2. Install dependencies:
+
+```bash
+npm install
+# or
+yarn install
+```
+
+3. Run the development server:
 
 ```bash
 npm run dev
 # or
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+├── app/                    # Next.js app directory
+│   ├── layout.tsx         # Root layout with Mantine provider
+│   └── page.tsx           # Home page
+├── components/            # React components
+│   ├── WorldMapDiagram.tsx    # Main visualization component
+│   ├── SaveStateIndicator.tsx # Auto-save status indicator
+│   └── KeyValuePair.tsx       # Reusable key-value display
+├── stores/                # State management
+│   └── saveStateStore.ts  # Zustand store for persistence
+├── types/                 # TypeScript definitions
+│   └── gojs-types.ts     # GoJS data types
+├── utils/                 # Utility functions
+│   ├── coordinates.ts    # Lat/lng to diagram conversion
+│   ├── regions.ts        # Region detection and colors
+│   └── shipping.ts       # Shipping route generation
+└── theme/                # UI theme configuration
+    └── index.ts         # Mantine theme settings
+```
 
-## Learn More
+## Design Decisions
 
-To learn more about Next.js, take a look at the following resources:
+### 1. Technology Stack (and Why I Chose It)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Next.js 15**: The latest React framework delivering optimized performance, intuitive file-based routing, and an enhanced developer experience (DX).
+- **GoJS**: I have to (assigned).
+- **Mantine UI**: TypeScript-first React component library offering powerful theming, responsive design, built-in hooks, and a clean developer experience
+- **TypeScript**: Type safety and better developer experience
+- **Zustand**: Lightweight state management for persistence
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 2. Data Structure
 
-## Deploy on Vercel
+- Cities are loaded from `public/worldcities.json` with population data
+- Shipping routes are dynamically generated based on:
+  - Geographic proximity
+  - Region boundaries
+  - Population thresholds
+- Node sizes are determined by population (25px, 35px, or 45px base size)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 3. Interaction Design
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Click**: Select nodes/links and update detail panels
+- **Tool Controls** (disabled by default, enable via buttons):
+  - **Drag Nodes button**: When enabled, move nodes around the diagram
+  - **Create Links button**: When enabled, click and drag from one node to another to create new shipping routes
+  - **Relink button**: When enabled, drag link endpoints to different nodes
+- **Ctrl+Click+Drag**: Resize nodes dynamically
+- **Right-click**: Context menus for font size adjustments
+- **Hover**: Visual feedback with red borders and link highlighting
+- **Drag sliders**: Real-time adjustment of node sizes and link opacity
+
+## Performance Considerations
+
+### 1. Rendering Optimizations
+
+- **Fixed bounds**: Prevents unnecessary recalculations with `fixedBounds`
+- **Conditional rendering**: Links only update when visible
+
+### 2. Data Management
+
+- **Lazy loading**: Cities loaded asynchronously after component mount
+- **Filtered rendering**: Only visible nodes and links are processed
+- **Memoized calculations**: Base sizes cached to avoid recalculation
+- **Efficient updates**: GoJS model commits batch changes
+
+### 3. State Optimization
+
+- **Debounced saves**: Auto-save triggers are throttled
+- **Selective updates**: Only affected elements re-render
+- **Shallow comparisons**: React hooks optimized with dependency arrays
+
+### 4. Memory Management
+
+- **Cleanup on unmount**: Event listeners and diagram references cleared
+- **Limited search results**: Autocomplete shows max 10 cities
+- **Viewport culling**: GoJS automatically handles off-screen elements
+
+### 5. User Experience
+
+- **Responsive sliders**: 0.1s transitions for smooth feedback
+- **Hover states**: Instant visual feedback without layout shifts
+- **Disabled states**: Clear visual indicators for unavailable actions
