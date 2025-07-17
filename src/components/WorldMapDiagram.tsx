@@ -23,62 +23,123 @@ import {
   IconZoomOut,
   IconRefresh,
   IconMaximize,
+  IconHandMove,
+  IconLink,
+  IconUnlink,
 } from "@tabler/icons-react";
 import { convertLatLngToDiagramCoords } from "@/utils/coordinates";
 import { detectRegion, regionColors, getNodeSize } from "@/utils/regions";
 import { createShippingLinks } from "@/utils/shipping";
 import type { GoJSCityNodeData } from "../types/gojs-types";
 import { SaveStateIndicator } from "./SaveStateIndicator";
-import { useSaveStateStore } from "../stores/saveStateStore";
-import { KeyValuePair } from "./KeyValuePair";
+import { SearchAndFilter } from "./SearchAndFilter";
+import { LinkControls } from "./LinkControls";
+import { NodeDetails } from "./NodeDetails";
+import { ZoomControls } from "./ZoomControls";
+import { DiagramContextMenu } from "./DiagramContextMenu";
+import {
+  useDiagramStore,
+  useFilterStore,
+  useUIControlsStore,
+  useContextMenuStore,
+  useInteractionStore,
+  useSaveStateStore,
+} from "../stores";
+import { useTestStore } from "../stores/testStore";
 
 export default function WorldMapDiagram() {
   const diagramRef = useRef<HTMLDivElement>(null);
-  const [diagram, setDiagram] = useState<go.Diagram | null>(null);
+
+  // Test store
+  const { testValue, setTestValue } = useTestStore();
+
+  // Remove Zustand for selectedCity and node size
+  // Local state for selected city and node size
   const [selectedCity, setSelectedCity] = useState<GoJSCityNodeData | null>(
     null
   );
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedRegion, setSelectedRegion] = useState<string>("all");
-  const [showLinks, setShowLinks] = useState(true);
-  const [linkOpacity, setLinkOpacity] = useState(1);
-  const [selectedNodeSize, setSelectedNodeSize] = useState(1);
-  const [allCities, setAllCities] = useState<GoJSCityNodeData[]>([]);
-  const [selectedShippingMethod, setSelectedShippingMethod] = useState<
-    string | null
-  >(null);
-  const [contextMenu, setContextMenu] = useState<{
-    visible: boolean;
-    x: number;
-    y: number;
-    type: "node" | "link" | null;
-    target: go.Node | go.Link | null;
-  }>({ visible: false, x: 0, y: 0, type: null, target: null });
-  const [isResizing, setIsResizing] = useState<{
-    active: boolean;
-    type: "node" | "link" | null;
-    target: go.Node | go.Link | null;
-    startX: number;
-    startY: number;
+  const [nodeSize, setNodeSize] = useState<number>(1);
+
+  // Diagram store (for diagram instance and selectedLink only)
+  const { diagram, selectedLink, setDiagram, setSelectedLink } =
+    useDiagramStore();
+
+  // Filter store
+  const {
+    searchTerm,
+    selectedShippingMethod,
+    allCities,
+    setSearchTerm,
+    setSelectedShippingMethod,
+    setAllCities,
+  } = useFilterStore();
+
+  // UI Controls store
+  const {
+    showLinks,
+    linkOpacity,
+    selectedLinkThickness,
+    toggleLinks,
+    setShowLinks,
+    setLinkOpacity,
+    setSelectedNodeSize,
+    setSelectedLinkThickness,
+  } = useUIControlsStore();
+
+  // Context Menu store
+  const {
+    visible: contextMenuVisible,
+    x: contextMenuX,
+    y: contextMenuY,
+    type: contextMenuType,
+    target: contextMenuTarget,
+    showContextMenu,
+    hideContextMenu,
+  } = useContextMenuStore();
+
+  // Interaction store
+  const {
+    isDraggingEnabled,
+    isLinkingEnabled,
+    isRelinkingEnabled,
+    isResizing,
+    resizeTarget,
+    resizeMouseStartX,
+    setDraggingEnabled,
+    setLinkingEnabled,
+    setRelinkingEnabled,
+    startResize,
+    stopResize,
+  } = useInteractionStore();
+
+  // Save state store
+  const { triggerSave } = useSaveStateStore();
+
+  // Local state for resize functionality (complex object not suitable for store)
+  const [resizeState, setResizeState] = useState<{
     startSize?: number;
     startFont?: string;
   }>({
-    active: false,
-    type: null,
-    target: null,
-    startX: 0,
-    startY: 0,
     startSize: undefined,
     startFont: undefined,
   });
-
-  const { triggerSave } = useSaveStateStore();
 
   const loadCityData = useCallback(
     async (diagram: go.Diagram) => {
       try {
         const response = await fetch("/worldcities.json");
-        const cities: GoJSCityNodeData[] = await response.json();
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const text = await response.text();
+
+        if (!text.trim()) {
+          throw new Error("Empty response received");
+        }
+
+        const cities: GoJSCityNodeData[] = JSON.parse(text);
 
         setAllCities(cities); // Store all cities for autocomplete
 
@@ -109,6 +170,11 @@ export default function WorldMapDiagram() {
         });
       } catch (error) {
         console.error("Error loading city data:", error);
+        console.error("Error details:", {
+          name: (error as Error).name,
+          message: (error as Error).message,
+          stack: (error as Error).stack,
+        });
       }
     },
     [linkOpacity]
@@ -123,7 +189,9 @@ export default function WorldMapDiagram() {
       "undoManager.isEnabled": false,
       layout: $(go.Layout),
       isReadOnly: false,
-      "draggingTool.isEnabled": true,
+      "draggingTool.isEnabled": false,
+      "linkingTool.isEnabled": false,
+      "relinkingTool.isEnabled": true,
       "grid.visible": true,
       "grid.gridCellSize": new go.Size(80, 80),
       initialAutoScale: go.Diagram.Uniform,
@@ -132,6 +200,25 @@ export default function WorldMapDiagram() {
       fixedBounds: new go.Rect(0, 0, 1600, 800),
       model: new go.GraphLinksModel(),
     });
+
+    // Configure linking tool
+    myDiagram.toolManager.linkingTool.temporaryLink = $(
+      go.Link,
+      {
+        routing: go.Link.Normal,
+        curve: go.Link.Bezier,
+        layerName: "Tool",
+      },
+      $(go.Shape, {
+        stroke: "#FF69B4",
+        strokeWidth: 2,
+        strokeDashArray: [4, 2],
+      })
+    );
+
+    // Configure relinking tool
+    myDiagram.toolManager.relinkingTool.temporaryLink =
+      myDiagram.toolManager.linkingTool.temporaryLink;
 
     // Set dark theme background
     if (myDiagram.div) {
@@ -145,14 +232,17 @@ export default function WorldMapDiagram() {
         movable: false,
         locationSpot: go.Spot.Center,
         selectable: true,
+        fromLinkable: true,
+        toLinkable: true,
+        fromLinkableDuplicates: false,
+        toLinkableDuplicates: false,
         contextClick: (e, node) => {
           if (e.event) {
             e.event.preventDefault();
             const goNode = node as go.Node;
             const rect = myDiagram.div?.getBoundingClientRect();
             if (rect) {
-              setContextMenu({
-                visible: true,
+              showContextMenu({
                 x: (e.event as MouseEvent).clientX - rect.left,
                 y: (e.event as MouseEvent).clientY - rect.top,
                 type: "node",
@@ -170,18 +260,64 @@ export default function WorldMapDiagram() {
             const mouseEvent = e.event as MouseEvent;
             const shape = goNode.findObject("SHAPE") as go.Shape;
             if (shape) {
-              setIsResizing({
-                active: true,
-                type: "node",
-                target: goNode,
-                startX: mouseEvent.clientX,
-                startY: mouseEvent.clientY,
-                startSize: shape.width,
-              });
+              startResize(goNode, mouseEvent.clientX);
+              setResizeState({ startSize: shape.width });
             }
           }
 
-          setSelectedCity(data);
+          // Create a completely clean object for state storage
+          const cityData = {
+            key: Number(data.key || data.id),
+            id: Number(data.id),
+            city: String(data.city),
+            city_ascii: String(data.city_ascii || data.city),
+            country: String(data.country),
+            iso2: String(data.iso2 || ""),
+            iso3: String(data.iso3 || ""),
+            admin_name: String(data.admin_name || ""),
+            lat: Number(data.lat),
+            lng: Number(data.lng),
+            population: Number(data.population || 0),
+            region: String(data.region || ""),
+            color: String(data.color || "#000"),
+            size: Number(data.size || 10),
+            location: data.location
+              ? {
+                  x: Number(data.location.x),
+                  y: Number(data.location.y),
+                }
+              : null,
+          };
+
+          setSelectedCity({ ...cityData });
+          triggerSave();
+
+          // Update node size slider to show current node's size
+          const shape = goNode.findObject("SHAPE") as go.Shape;
+          const label = goNode.findObject("LABEL") as go.TextBlock;
+          if (shape) {
+            const baseSize = getNodeSize(data.population);
+            const currentSize = shape.width;
+            const sizeMultiplier = currentSize / baseSize;
+            setNodeSize(Math.max(0.5, Math.min(2, sizeMultiplier)));
+          }
+
+          // Update font size if it's been modified
+          if (label) {
+            const currentFont = label.font;
+            const fontSize = parseInt(
+              currentFont.match(/(\d+)px/)?.[1] || "10"
+            );
+            const baseFontSize = 10;
+            const fontMultiplier = fontSize / baseFontSize;
+            // Update the node size to reflect the font size if it's been modified
+            if (fontMultiplier !== 1) {
+              setNodeSize(Math.max(0.5, Math.min(2, fontMultiplier)));
+            }
+          }
+
+          // Clear link selection when node is selected
+          setSelectedLink(null);
 
           // Highlight selected node
           myDiagram.nodes.each((n) => {
@@ -226,7 +362,16 @@ export default function WorldMapDiagram() {
         mouseEnter: (e, node) => {
           const goNode = node as go.Node;
           const shape = goNode.findObject("SHAPE") as go.Shape;
-          if (shape && !goNode.isSelected) {
+          const data = goNode.data as GoJSCityNodeData;
+
+          // Only apply hover styling if this node is not the currently selected node
+          if (shape && selectedCity && selectedCity.key === data.key) {
+            // Keep selected node appearance
+            shape.stroke = "#fff";
+            shape.strokeWidth = 4;
+            shape.scale = 1.5;
+          } else if (shape) {
+            // Apply hover styling only if not selected
             shape.scale = 1.5; // Larger scale for better visibility
             shape.stroke = "#ff4444"; // Red border on hover
             shape.strokeWidth = 3; // Thicker border
@@ -234,7 +379,6 @@ export default function WorldMapDiagram() {
 
           // Highlight connected links on hover only if links are visible
           if (showLinks) {
-            const data = goNode.data as GoJSCityNodeData;
             myDiagram.links.each((link) => {
               const goLink = link as go.Link;
               const linkShape = goLink.findObject("LINKSHAPE") as go.Shape;
@@ -251,14 +395,17 @@ export default function WorldMapDiagram() {
           const shape = goNode.findObject("SHAPE") as go.Shape;
           const data = goNode.data as GoJSCityNodeData;
 
-          if (shape && !goNode.isSelected) {
-            shape.scale = 1;
-            shape.stroke = "#666"; // Reset to default stroke
-            shape.strokeWidth = 2; // Reset to default width
-          } else if (shape && selectedCity && selectedCity.key === data.key) {
+          // Only reset styling if this node is not the currently selected node
+          if (shape && selectedCity && selectedCity.key === data.key) {
             // Keep selected node appearance
             shape.stroke = "#fff";
             shape.strokeWidth = 4;
+            shape.scale = 1.5;
+          } else if (shape) {
+            // Reset to default only if not selected
+            shape.scale = 1;
+            shape.stroke = "#666"; // Reset to default stroke
+            shape.strokeWidth = 2; // Reset to default width
           }
 
           // Reset link opacity if no node is selected
@@ -306,7 +453,7 @@ export default function WorldMapDiagram() {
         new go.Binding("width", "size"),
         new go.Binding("height", "size"),
         new go.Binding("cursor", "", () =>
-          isResizing.active && isResizing.type === "node"
+          isResizing && resizeTarget instanceof go.Node
             ? "nwse-resize"
             : "pointer"
         )
@@ -336,9 +483,8 @@ export default function WorldMapDiagram() {
         routing: go.Link.Normal,
         curve: go.Link.Bezier,
         selectable: true,
-        relinkableFrom: false,
-        relinkableTo: false,
-        movable: true,
+        relinkableFrom: true,
+        relinkableTo: true,
 
         contextClick: (e, link) => {
           if (e.event) {
@@ -346,8 +492,7 @@ export default function WorldMapDiagram() {
             const goLink = link as go.Link;
             const rect = myDiagram.div?.getBoundingClientRect();
             if (rect) {
-              setContextMenu({
-                visible: true,
+              showContextMenu({
                 x: (e.event as MouseEvent).clientX - rect.left,
                 y: (e.event as MouseEvent).clientY - rect.top,
                 type: "link",
@@ -360,6 +505,40 @@ export default function WorldMapDiagram() {
           const goLink = link as go.Link;
           const label = goLink.findObject("LABEL");
 
+          // Select the link
+          setSelectedLink(goLink);
+
+          // Update slider to show selected link's current thickness
+          const linkShape = goLink.findObject("LINKSHAPE") as go.Shape;
+          if (linkShape) {
+            const currentThickness = linkShape.strokeWidth - 2; // Subtract highlighting
+            setSelectedLinkThickness(Math.max(1, currentThickness));
+          }
+
+          // Update font size if it's been modified
+          const linkLabel = goLink.findObject("LABEL");
+          if (linkLabel && linkLabel instanceof go.Panel) {
+            const textBlock = linkLabel.elt(1);
+            if (textBlock instanceof go.TextBlock) {
+              const currentFont = textBlock.font;
+              const fontSize = parseInt(
+                currentFont.match(/(\d+)px/)?.[1] || "10"
+              );
+              const baseFontSize = 10;
+              const fontMultiplier = fontSize / baseFontSize;
+              // Update the thickness to reflect the font size if it's been modified
+              if (fontMultiplier !== 1) {
+                const thicknessFromFont = fontMultiplier * 2; // Reverse calculation
+                setSelectedLinkThickness(
+                  Math.max(1, Math.min(5, thicknessFromFont))
+                );
+              }
+            }
+          }
+
+          // Clear node selection when link is selected
+          setSelectedCity(null);
+
           if (label && label.visible) {
             // Start resize mode for link label only if Ctrl/Cmd key is held down
             if (
@@ -369,19 +548,41 @@ export default function WorldMapDiagram() {
             ) {
               const textBlock = label.elt(1);
               if (textBlock instanceof go.TextBlock) {
-                setIsResizing({
-                  active: true,
-                  type: "link",
-                  target: goLink,
-                  startX: (e.event as MouseEvent).clientX,
-                  startY: (e.event as MouseEvent).clientY,
-                  startFont: textBlock.font,
-                });
+                startResize(goLink, (e.event as MouseEvent).clientX);
+                setResizeState({ startFont: textBlock.font });
               }
             }
           } else if (label) {
             label.visible = true;
           }
+
+          // Highlight selected link
+          myDiagram.links.each((link) => {
+            const linkItem = link as go.Link;
+            const linkShape = linkItem.findObject("LINKSHAPE") as go.Shape;
+            if (linkShape) {
+              if (linkItem === goLink) {
+                // Highlight selected link
+                linkShape.strokeWidth = (linkItem.data.strokeWidth || 2) + 2;
+                linkShape.stroke = "#fff";
+              } else {
+                // Reset other links
+                linkShape.strokeWidth = linkItem.data.strokeWidth || 2;
+                linkShape.stroke = linkItem.data.stroke || "#666";
+              }
+            }
+          });
+
+          // Clear node highlighting
+          myDiagram.nodes.each((n) => {
+            const nNode = n as go.Node;
+            const shape = nNode.findObject("SHAPE") as go.Shape;
+            if (shape) {
+              shape.strokeWidth = 2;
+              shape.stroke = "#666";
+              shape.scale = 1;
+            }
+          });
         },
         mouseEnter: (e, link) => {
           if (showLinks) {
@@ -447,41 +648,101 @@ export default function WorldMapDiagram() {
 
     loadCityData(myDiagram);
 
+    // Add diagram click handler to clear selections when clicking on empty space
+    myDiagram.addDiagramListener("BackgroundSingleClicked", (e) => {
+      // Check if the click was actually on the background by examining the event
+      const point = myDiagram.lastInput.documentPoint;
+      const part = myDiagram.findPartAt(point);
+
+      // Only clear selection if we're clicking on the background (no part found)
+      if (!part || part instanceof go.Node || part instanceof go.Link) {
+        // Don't clear selection if clicking on a node or link
+        return;
+      }
+
+      setSelectedCity(null);
+      setSelectedLink(null);
+
+      // Clear all highlighting
+      myDiagram.nodes.each((n) => {
+        const nNode = n as go.Node;
+        const shape = nNode.findObject("SHAPE") as go.Shape;
+        if (shape) {
+          shape.strokeWidth = 2;
+          shape.stroke = "#666";
+          shape.scale = 1;
+        }
+      });
+
+      myDiagram.links.each((link) => {
+        const goLink = link as go.Link;
+        const linkShape = goLink.findObject("LINKSHAPE") as go.Shape;
+        if (linkShape) {
+          linkShape.strokeWidth = goLink.data.strokeWidth || 2;
+          linkShape.stroke = goLink.data.stroke || "#666";
+        }
+      });
+    });
+
+    // Handle link insertion and modification
+    myDiagram.addDiagramListener("LinkDrawn", (e) => {
+      const link = e.subject as go.Link;
+      if (link && link.data) {
+        // Set default properties for newly created links
+        myDiagram.model.commit((m) => {
+          m.set(link.data, "stroke", "#FF69B4");
+          m.set(link.data, "strokeWidth", 2);
+          m.set(link.data, "strokeDashArray", [4, 2]);
+          m.set(link.data, "opacity", 1);
+          m.set(link.data, "method", "custom");
+          m.set(link.data, "label", "New Route");
+          m.set(link.data, "isCustom", true);
+        });
+        triggerSave();
+      }
+    });
+
+    myDiagram.addDiagramListener("LinkRelinked", (e) => {
+      const link = e.subject as go.Link;
+      if (link && link.data) {
+        triggerSave();
+      }
+    });
+
     // Add context menu handler
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
-      setContextMenu({ visible: false, x: 0, y: 0, type: null, target: null });
+      hideContextMenu();
     };
 
     // Add resize handlers
     const handleMouseMove = (e: MouseEvent) => {
-      if (isResizing.active && myDiagram) {
-        const deltaX = e.clientX - isResizing.startX;
-        const deltaY = e.clientY - isResizing.startY;
-        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+      if (isResizing && myDiagram) {
+        const deltaX = e.clientX - resizeMouseStartX;
+        const distance = Math.abs(deltaX);
         const scaleFactor = 1 + (distance / 100) * (deltaX > 0 ? 1 : -1);
 
-        if (isResizing.type === "node" && isResizing.target) {
-          const node = isResizing.target as go.Node;
+        if (resizeTarget instanceof go.Node) {
+          const node = resizeTarget as go.Node;
           const shape = node.findObject("SHAPE") as go.Shape;
-          if (shape && isResizing.startSize) {
+          if (shape && resizeState.startSize) {
             const newSize = Math.max(
               5,
-              Math.min(50, isResizing.startSize * scaleFactor)
+              Math.min(50, resizeState.startSize * scaleFactor)
             );
             myDiagram.model.commit((m) => {
               m.set(node.data, "size", newSize);
             });
             triggerSave();
           }
-        } else if (isResizing.type === "link" && isResizing.target) {
-          const link = isResizing.target as go.Link;
+        } else if (resizeTarget instanceof go.Link) {
+          const link = resizeTarget as go.Link;
           const label = link.findObject("LABEL");
           if (label && label instanceof go.Panel) {
             const textBlock = label.elt(1);
-            if (textBlock instanceof go.TextBlock && isResizing.startFont) {
+            if (textBlock instanceof go.TextBlock && resizeState.startFont) {
               const currentSize = parseInt(
-                isResizing.startFont.match(/(\d+)px/)?.[1] || "10"
+                resizeState.startFont.match(/(\d+)px/)?.[1] || "10"
               );
               const newSize = Math.max(
                 6,
@@ -496,16 +757,9 @@ export default function WorldMapDiagram() {
     };
 
     const handleMouseUp = () => {
-      if (isResizing.active) {
-        setIsResizing({
-          active: false,
-          type: null,
-          target: null,
-          startX: 0,
-          startY: 0,
-          startSize: undefined,
-          startFont: undefined,
-        });
+      if (isResizing) {
+        stopResize();
+        setResizeState({ startSize: undefined, startFont: undefined });
       }
     };
 
@@ -519,7 +773,215 @@ export default function WorldMapDiagram() {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [selectedCity, showLinks]);
+  }, [showLinks]);
+
+  // Update dragging tool when state changes
+  useEffect(() => {
+    if (diagram) {
+      // Configure dragging tool
+      diagram.toolManager.draggingTool.isEnabled = isDraggingEnabled;
+
+      // Update movable property on all nodes
+      diagram.startTransaction("toggle dragging");
+      diagram.nodes.each((node) => {
+        const goNode = node as go.Node;
+        goNode.movable = isDraggingEnabled;
+      });
+      diagram.commitTransaction("toggle dragging");
+    }
+  }, [diagram, isDraggingEnabled]);
+
+  // Update linking tool when state changes
+  useEffect(() => {
+    if (diagram) {
+      // Configure linking tool
+      diagram.toolManager.linkingTool.isEnabled = isLinkingEnabled;
+
+      // Update linkable properties on all nodes
+      diagram.startTransaction("toggle linking");
+      diagram.nodes.each((node) => {
+        const goNode = node as go.Node;
+        goNode.fromLinkable = isLinkingEnabled;
+        goNode.toLinkable = isLinkingEnabled;
+        goNode.fromLinkableDuplicates = false; // Don't allow duplicate links
+        goNode.toLinkableDuplicates = false;
+      });
+      diagram.commitTransaction("toggle linking");
+    }
+  }, [diagram, isLinkingEnabled]);
+
+  // Maintain selected node styling on re-renders
+  useEffect(() => {
+    if (diagram && selectedCity) {
+      diagram.nodes.each((node) => {
+        const goNode = node as go.Node;
+        const shape = goNode.findObject("SHAPE") as go.Shape;
+        if (shape) {
+          if (goNode.data.key === selectedCity.key) {
+            // Apply selected node styling
+            shape.strokeWidth = 4;
+            shape.stroke = "#fff";
+            shape.scale = 1.5;
+          } else {
+            // Reset other nodes to default
+            shape.strokeWidth = 2;
+            shape.stroke = "#666";
+            shape.scale = 1;
+          }
+        }
+      });
+    }
+  }, [diagram, selectedCity]);
+
+  // Apply node size changes when selectedNodeSize changes
+  useEffect(() => {
+    if (diagram && selectedCity && nodeSize) {
+      handleNodeSizeChange(nodeSize);
+    }
+  }, [nodeSize, diagram, selectedCity]);
+
+  // Apply search and region filters
+  useEffect(() => {
+    if (!diagram) return;
+
+    diagram.startTransaction("filter");
+    diagram.nodes.each((node) => {
+      const city = node.data;
+      if (!city) return;
+
+      let visible = true;
+
+      // Apply search filter
+      if (searchTerm) {
+        visible =
+          city.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          city.country.toLowerCase().includes(searchTerm.toLowerCase());
+      }
+
+      node.visible = visible;
+    });
+
+    // Update links visibility based on connected nodes
+    diagram.links.each((link) => {
+      const nodesVisible =
+        (link.fromNode?.visible ?? false) && (link.toNode?.visible ?? false);
+      if (!nodesVisible) {
+        link.visible = false;
+      }
+    });
+
+    diagram.commitTransaction("filter");
+  }, [diagram, searchTerm]);
+
+  // Apply shipping method filter
+  useEffect(() => {
+    if (!diagram) return;
+
+    diagram.startTransaction("filter shipping");
+
+    // First, update link visibility based on shipping method
+    diagram.links.each((link) => {
+      const linkData = link.data;
+      if (!linkData) return;
+
+      // Check if connected nodes are visible first (from previous filters)
+      const nodesVisible =
+        (link.fromNode?.visible ?? false) && (link.toNode?.visible ?? false);
+
+      if (!nodesVisible) {
+        link.visible = false;
+        return;
+      }
+
+      // Apply shipping method filter
+      if (selectedShippingMethod && selectedShippingMethod !== "All") {
+        link.visible = linkData.method === selectedShippingMethod;
+      } else {
+        link.visible = showLinks;
+      }
+    });
+
+    // Now, update node visibility: only show nodes that are connected by at least one visible link AND match the search filter
+    diagram.nodes.each((node) => {
+      const city = node.data;
+      if (!city) return;
+
+      // Check if node matches the search filter
+      let matchesSearch = true;
+      if (searchTerm) {
+        matchesSearch =
+          city.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          city.country.toLowerCase().includes(searchTerm.toLowerCase());
+      }
+
+      // If a shipping method is selected, only show nodes connected by a visible link of that method
+      if (selectedShippingMethod && selectedShippingMethod !== "All") {
+        // Is this node connected by a visible link?
+        let connectedByVisibleLink = false;
+        diagram.links.each((link) => {
+          if (
+            link.visible &&
+            (link.fromNode === node || link.toNode === node)
+          ) {
+            connectedByVisibleLink = true;
+          }
+        });
+        node.visible = matchesSearch && connectedByVisibleLink;
+      } else {
+        // If no shipping method filter, just use the search filter
+        node.visible = matchesSearch;
+      }
+    });
+
+    diagram.commitTransaction("filter shipping");
+  }, [diagram, selectedShippingMethod, showLinks, searchTerm]);
+
+  // Apply link visibility
+  useEffect(() => {
+    if (!diagram) return;
+
+    diagram.startTransaction("link visibility");
+    diagram.links.each((link) => {
+      const path = link.path;
+      if (path) {
+        path.visible = showLinks;
+      }
+    });
+    diagram.commitTransaction("link visibility");
+  }, [diagram, showLinks]);
+
+  // Apply link opacity
+  useEffect(() => {
+    if (!diagram) return;
+
+    diagram.startTransaction("link opacity");
+    diagram.links.each((link) => {
+      const path = link.path;
+      if (path) {
+        path.opacity = linkOpacity;
+      }
+
+      const label = link.findObject("LABEL");
+      if (label) {
+        label.opacity = linkOpacity;
+      }
+    });
+    diagram.commitTransaction("link opacity");
+  }, [diagram, linkOpacity]);
+
+  // Apply link thickness
+  useEffect(() => {
+    if (!diagram) return;
+
+    diagram.startTransaction("link thickness");
+    diagram.links.each((link) => {
+      const path = link.path;
+      if (path) {
+        path.strokeWidth = selectedLinkThickness;
+      }
+    });
+    diagram.commitTransaction("link thickness");
+  }, [diagram, selectedLinkThickness]);
 
   const handleZoomIn = () => {
     if (diagram) {
@@ -577,35 +1039,7 @@ export default function WorldMapDiagram() {
         const goNode = node as go.Node;
         const cityName = (goNode.data as GoJSCityNodeData).city.toLowerCase();
         const visible = term === "" || cityName.includes(term.toLowerCase());
-        goNode.visible =
-          visible &&
-          (selectedRegion === "all" ||
-            (goNode.data as GoJSCityNodeData).region === selectedRegion);
-      });
-
-      diagram.links.each((link) => {
-        const goLink = link as go.Link;
-        const fromNode = diagram.findNodeForKey(goLink.data.from);
-        const toNode = diagram.findNodeForKey(goLink.data.to);
-        goLink.visible =
-          showLinks &&
-          (fromNode?.visible ?? false) &&
-          (toNode?.visible ?? false);
-      });
-    }
-  };
-
-  const handleRegionFilter = (region: string) => {
-    setSelectedRegion(region);
-    if (diagram) {
-      diagram.nodes.each((node) => {
-        const goNode = node as go.Node;
-        const nodeRegion = (goNode.data as GoJSCityNodeData).region;
-        const cityName = (goNode.data as GoJSCityNodeData).city.toLowerCase();
-        const matchesSearch =
-          searchTerm === "" || cityName.includes(searchTerm.toLowerCase());
-        goNode.visible =
-          matchesSearch && (region === "all" || nodeRegion === region);
+        goNode.visible = visible;
       });
 
       diagram.links.each((link) => {
@@ -678,12 +1112,16 @@ export default function WorldMapDiagram() {
     }
   };
 
+  // In the node click handler, update selectedCity and nodeSize state
   const handleNodeSizeChange = (sizeMultiplier: number) => {
+    setNodeSize(sizeMultiplier);
     if (diagram && selectedCity) {
       diagram.nodes.each((node) => {
         const goNode = node as go.Node;
         if (goNode.data.key === selectedCity.key) {
           const shape = goNode.findObject("SHAPE") as go.Shape;
+          const label = goNode.findObject("LABEL") as go.TextBlock;
+
           if (shape) {
             const baseSize =
               goNode.data.size || getNodeSize(goNode.data.population);
@@ -691,15 +1129,59 @@ export default function WorldMapDiagram() {
             shape.width = newSize;
             shape.height = newSize;
           }
+
+          // Update font size proportionally
+          if (label) {
+            const baseFontSize = 10; // Base font size
+            const newFontSize = Math.max(
+              6,
+              Math.min(24, baseFontSize * sizeMultiplier)
+            );
+            label.font = `bold ${newFontSize}px sans-serif`;
+          }
         }
       });
       triggerSave();
     }
   };
 
+  const handleLinkThicknessChange = (thickness: number) => {
+    if (diagram && showLinks && selectedLink) {
+      const linkShape = selectedLink.findObject("LINKSHAPE") as go.Shape;
+      const label = selectedLink.findObject("LABEL");
+
+      if (linkShape) {
+        linkShape.strokeWidth = thickness;
+        selectedLink.data.strokeWidth = thickness;
+
+        // Update the visual highlighting for selected link
+        if (selectedLink === selectedLink) {
+          // This will always be true, but keeping for clarity
+          linkShape.strokeWidth = thickness + 2; // Add 2 for highlighting
+          linkShape.stroke = "#fff";
+        }
+      }
+
+      // Update font size proportionally to link thickness
+      if (label && label instanceof go.Panel) {
+        const textBlock = label.elt(1);
+        if (textBlock instanceof go.TextBlock) {
+          const baseFontSize = 10; // Base font size
+          const newFontSize = Math.max(
+            6,
+            Math.min(20, baseFontSize * (thickness / 2))
+          ); // Scale with thickness
+          textBlock.font = `${newFontSize}px sans-serif`;
+        }
+      }
+
+      triggerSave();
+    }
+  };
+
   const handleDoubleFontSize = () => {
-    if (contextMenu.type === "node" && contextMenu.target && diagram) {
-      const node = contextMenu.target as go.Node;
+    if (contextMenuType === "node" && contextMenuTarget && diagram) {
+      const node = contextMenuTarget as go.Node;
       const currentFontSize = node.data.fontSize || 12;
       const newFontSize = Math.min(currentFontSize * 2, 48); // Max 48px
 
@@ -708,12 +1190,12 @@ export default function WorldMapDiagram() {
       });
       triggerSave();
     }
-    setContextMenu({ visible: false, x: 0, y: 0, type: null, target: null });
+    hideContextMenu();
   };
 
   const handleHalveFontSize = () => {
-    if (contextMenu.type === "link" && contextMenu.target && diagram) {
-      const link = contextMenu.target as go.Link;
+    if (contextMenuType === "link" && contextMenuTarget && diagram) {
+      const link = contextMenuTarget as go.Link;
       const label = link.findObject("LABEL");
       if (label && label instanceof go.Panel) {
         const textBlock = label.elt(1);
@@ -728,7 +1210,7 @@ export default function WorldMapDiagram() {
         }
       }
     }
-    setContextMenu({ visible: false, x: 0, y: 0, type: null, target: null });
+    hideContextMenu();
   };
 
   const handleShippingMethodClick = (method: string) => {
@@ -761,614 +1243,171 @@ export default function WorldMapDiagram() {
     triggerSave();
   };
 
+  // Full reset handler
+  const handleFullReset = async () => {
+    setSelectedCity(null);
+    setSelectedLink(null);
+    setSearchTerm("");
+    setShowLinks(true);
+    setLinkOpacity(1);
+    setNodeSize(1);
+    setSelectedShippingMethod(null);
+    setSelectedLinkThickness(2);
+    setDraggingEnabled(false);
+    setLinkingEnabled(false);
+    setRelinkingEnabled(false);
+    hideContextMenu();
+    stopResize();
+    setResizeState({ startSize: undefined, startFont: undefined });
+    if (diagram) {
+      await loadCityData(diagram);
+      diagram.scale = 1;
+      diagram.scrollToRect(diagram.documentBounds);
+    }
+  };
+
+  const resetView = async () => {
+    if (!diagram) return;
+
+    // Clear current selections
+    setSelectedCity(null);
+    setSelectedLink(null);
+
+    // Reset filters
+    setSearchTerm("");
+    setSelectedShippingMethod(null);
+
+    // Reset UI controls
+    setShowLinks(true);
+    setLinkOpacity(0.7);
+    setSelectedLinkThickness(3);
+    setNodeSize(1);
+
+    // Reset interaction states
+    setDraggingEnabled(false);
+    setLinkingEnabled(false);
+    setRelinkingEnabled(false);
+
+    // Hide context menu
+    hideContextMenu();
+
+    // Stop any resize operations
+    stopResize();
+    setResizeState({ startSize: undefined, startFont: undefined });
+
+    // Reload city data and reset zoom
+    await loadCityData(diagram);
+    diagram.scale = 1;
+    diagram.scrollToRect(diagram.documentBounds);
+  };
+
   return (
-    <Box
-      className="w-full min-h-screen flex flex-col items-center justify-start"
-      bg="dark.8"
-    >
-      <Box style={{ width: "100%", maxWidth: 1200, margin: "0 auto" }}>
+    <Box className="w-full h-screen flex" bg="dark.8">
+      {/* Left Sidebar */}
+      <Paper
+        p="md"
+        bg="dark.7"
+        style={{
+          width: 350,
+          height: "100%",
+          overflowY: "auto",
+          borderRadius: 0,
+        }}
+      >
+        <Stack gap="md">
+          <div>
+            <Title size="sm" c="dimmed">
+              Visualization Dashboard
+            </Title>
+          </div>
+
+          {/* Node Details Section */}
+          <Paper p="sm" radius="md" bg="dark.6" withBorder>
+            <NodeDetails
+              key={selectedCity?.key || "no-selection"}
+              selectedCity={selectedCity}
+              nodeSize={nodeSize}
+              onNodeSizeChange={handleNodeSizeChange}
+            />
+          </Paper>
+
+          {/* Link Controls Section */}
+          <Paper p="md" radius="md" bg="dark.6" withBorder>
+            <Title order={5} mb="sm">
+              Link Controls
+            </Title>
+            <LinkControls
+              selectedLinkData={
+                selectedLink
+                  ? {
+                      from: selectedLink.data.from,
+                      to: selectedLink.data.to,
+                      method: selectedLink.data.method,
+                      distance: Math.round(
+                        selectedLink.fromNode && selectedLink.toNode
+                          ? Math.sqrt(
+                              Math.pow(
+                                selectedLink.fromNode.location.x -
+                                  selectedLink.toNode.location.x,
+                                2
+                              ) +
+                                Math.pow(
+                                  selectedLink.fromNode.location.y -
+                                    selectedLink.toNode.location.y,
+                                  2
+                                )
+                            )
+                          : 0
+                      ),
+                    }
+                  : undefined
+              }
+            />
+          </Paper>
+
+          {/* Search & Filter Section */}
+          <Paper p="sm" radius="md" bg="dark.6" withBorder>
+            <Title order={5} mb="sm">
+              Search & Filter
+            </Title>
+            <SearchAndFilter />
+          </Paper>
+        </Stack>
+      </Paper>
+
+      {/* Main Content Area */}
+      <Box style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        {/* Header */}
         <Paper p="md" radius={0} bg="dark.7">
           <Title order={2} mb="xs">
             World Shipping Network Visualization
           </Title>
-          <Text size="md" mb="md">
-            Click cities to view details, use zoom controls above, adjust link
-            settings in sidebar, search and filter cities, resize nodes with
-            Ctrl+click. <i>No light mode, of course.</i>
+          <Text size="md">
+            Click a city to view its details. Use the zoom controls to navigate
+            the map. Adjust link visibility and thickness in the sidebar. Search
+            for cities or countries, and filter the map by shipping method to
+            highlight specific routes and their connected cities. No light mode,
+            of course.
           </Text>
-
-          {/* Node details and Link controls in same row */}
-          <Group gap="md" align="flex-start" mt="md">
-            {/* Node details card */}
-            <Card p="md" radius="md" bg="dark.6" withBorder style={{ flex: 1 }}>
-              <Group justify="space-between" mb="xs">
-                <Title order={4}>
-                  {selectedCity
-                    ? `${selectedCity.city}, ${selectedCity.country}`
-                    : "Node Details"}
-                </Title>
-                <Text size="sm">Click a node to view details</Text>
-              </Group>
-              <Group gap="lg" align="flex-start">
-                {/* Left column - Node details */}
-                <Stack gap="xs" style={{ flex: 1 }}>
-                  <KeyValuePair
-                    label="Coordinates"
-                    value={
-                      selectedCity
-                        ? `${selectedCity.lat.toFixed(4)}°${
-                            selectedCity.lat > 0 ? "N" : "S"
-                          }, ${Math.abs(selectedCity.lng).toFixed(4)}°${
-                            selectedCity.lng > 0 ? "E" : "W"
-                          }`
-                        : "N/A"
-                    }
-                  />
-                  <KeyValuePair
-                    label="Population"
-                    value={
-                      selectedCity
-                        ? selectedCity.population.toLocaleString()
-                        : "N/A"
-                    }
-                  />
-                  <KeyValuePair
-                    label="Region"
-                    value={
-                      selectedCity ? (
-                        <Badge
-                          style={{
-                            backgroundColor: `${
-                              regionColors[selectedCity.region || ""]
-                            }20`,
-                            color: regionColors[selectedCity.region || ""],
-                          }}
-                        >
-                          {selectedCity.region
-                            ?.split("-")
-                            .map(
-                              (word) =>
-                                word.charAt(0).toUpperCase() + word.slice(1)
-                            )
-                            .join(" ")}
-                        </Badge>
-                      ) : (
-                        "N/A"
-                      )
-                    }
-                  />
-                </Stack>
-
-                {/* Right column - Shipping connections */}
-                <Stack gap="xs" style={{ flex: 1 }}>
-                  <KeyValuePair
-                    label="Deliver to"
-                    value={
-                      selectedCity && diagram
-                        ? Array.from(diagram.links)
-                            .filter((link) => {
-                              const goLink = link as go.Link;
-                              return (
-                                goLink.data.from === selectedCity.key ||
-                                goLink.data.to === selectedCity.key
-                              );
-                            })
-                            .map((link, idx) => {
-                              const goLink = link as go.Link;
-                              const isFrom =
-                                goLink.data.from === selectedCity.key;
-                              const counterKey = isFrom
-                                ? goLink.data.to
-                                : goLink.data.from;
-                              const counterNode =
-                                diagram.findNodeForKey(counterKey);
-                              const counterCity =
-                                counterNode?.data?.city || "Unknown";
-                              const counterCountry =
-                                counterNode?.data?.country || "Unknown";
-                              const counterRegion =
-                                counterNode?.data?.region || "unknown";
-                              return (
-                                <Text key={idx} span size="sm">
-                                  {counterCity}, {counterCountry}{" "}
-                                  <Badge
-                                    size="sm"
-                                    style={{
-                                      backgroundColor: `${regionColors[counterRegion]}20`,
-                                      color: regionColors[counterRegion],
-                                      verticalAlign: "middle",
-                                      marginLeft: 4,
-                                    }}
-                                  >
-                                    {counterRegion
-                                      ?.split("-")
-                                      .map(
-                                        (word: string) =>
-                                          word.charAt(0).toUpperCase() +
-                                          word.slice(1)
-                                      )
-                                      .join(" ")}
-                                  </Badge>
-                                </Text>
-                              );
-                            })
-                        : "N/A"
-                    }
-                  />
-                  <KeyValuePair
-                    label="Shipping method"
-                    value={
-                      selectedCity && diagram
-                        ? Array.from(diagram.links)
-                            .filter((link) => {
-                              const goLink = link as go.Link;
-                              return (
-                                goLink.data.from === selectedCity.key ||
-                                goLink.data.to === selectedCity.key
-                              );
-                            })
-                            .map((link, idx, arr) => {
-                              const goLink = link as go.Link;
-                              const methodLabels = {
-                                truck: "Truck",
-                                airplane: "Air",
-                                "airplane-express": "Express Air",
-                                ship: "Ship",
-                                "ship-express": "Express Ship",
-                              };
-                              const method = goLink.data
-                                .category as keyof typeof methodLabels;
-                              return (
-                                <span key={idx}>
-                                  {methodLabels[method] || method}
-                                  {idx < arr.length - 1 ? ", " : ""}
-                                </span>
-                              );
-                            })
-                        : "N/A"
-                    }
-                  />
-                </Stack>
-              </Group>
-
-              {/* Size Controls Section */}
-              <Stack
-                gap="md"
-                mt="md"
-                pt="md"
-                style={{ borderTop: "1px solid #4a4a4a" }}
-              >
-                <Group justify="space-between" mb="xs">
-                  <Title order={5}>Node Size</Title>
-                  <Text size="xs">Draggable after node selected</Text>
-                </Group>
-                <Group align="center" gap="md">
-                  <Box
-                    style={{
-                      width: "100%",
-                      height: 10,
-                      backgroundColor: "#2a2a2a",
-                      borderRadius: 5,
-                      position: "relative",
-                      cursor: selectedCity ? "pointer" : "not-allowed",
-                      opacity: selectedCity ? 1 : 0.5,
-                    }}
-                    onMouseDown={(e) => {
-                      if (!selectedCity) return;
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const x = e.clientX - rect.left;
-                      const percentage = Math.max(
-                        0,
-                        Math.min(1, x / rect.width)
-                      );
-                      const newSize = 0.5 + percentage * 1.5;
-                      setSelectedNodeSize(newSize);
-                      handleNodeSizeChange(newSize);
-                    }}
-                  >
-                    <Box
-                      style={{
-                        width: `${((selectedNodeSize - 0.5) / 1.5) * 100}%`,
-                        height: "100%",
-                        backgroundColor: selectedCity ? "#60A5FA" : "#6b7280",
-                        borderRadius: 5,
-                        transition: "width 0.1s",
-                      }}
-                    />
-                    <Box
-                      style={{
-                        position: "absolute",
-                        left: `${((selectedNodeSize - 0.5) / 1.5) * 100}%`,
-                        top: "50%",
-                        transform: `translate(-50%, -50%)`,
-                        width: 20,
-                        height: 20,
-                        backgroundColor: "white",
-                        borderRadius: "50%",
-                        border: `2px solid ${
-                          selectedCity ? "#60A5FA" : "#6b7280"
-                        }`,
-                        cursor: selectedCity ? "grab" : "not-allowed",
-                        zIndex: 10,
-                      }}
-                      onMouseDown={(e) => {
-                        if (!selectedCity) return;
-                        e.stopPropagation();
-                        const parentElement = e.currentTarget.parentElement;
-                        const handleMouseMove = (moveEvent: MouseEvent) => {
-                          const rect = parentElement?.getBoundingClientRect();
-                          if (rect) {
-                            const x = moveEvent.clientX - rect.left;
-                            const percentage = Math.max(
-                              0,
-                              Math.min(1, x / rect.width)
-                            );
-                            const newSize = 0.5 + percentage * 1.5; // 0.5x to 2x
-                            setSelectedNodeSize(newSize);
-                            handleNodeSizeChange(newSize);
-                          }
-                        };
-                        const handleMouseUp = () => {
-                          document.removeEventListener(
-                            "mousemove",
-                            handleMouseMove
-                          );
-                          document.removeEventListener(
-                            "mouseup",
-                            handleMouseUp
-                          );
-                        };
-                        document.addEventListener("mousemove", handleMouseMove);
-                        document.addEventListener("mouseup", handleMouseUp);
-                      }}
-                    />
-                  </Box>
-                  <Text size="xs" style={{ minWidth: 50 }}>
-                    {selectedNodeSize.toFixed(1)}x
-                  </Text>
-                </Group>
-              </Stack>
-            </Card>
-
-            {/* Link controls card */}
-            <Paper
-              p="sm"
-              radius="md"
-              bg="dark.6"
-              withBorder
-              style={{ flex: 1, display: "flex", flexDirection: "column" }}
-            >
-              <Group justify="space-between" mb="sm">
-                <Title order={5}>Link Controls</Title>
-                <Switch
-                  checked={showLinks}
-                  onChange={() => handleToggleLinks()}
-                  label={showLinks ? "Links Visible" : "Links Hidden"}
-                  onLabel="ON"
-                  offLabel="OFF"
-                />
-              </Group>
-              <Group align="center" gap="md" mt="md" mb="sm">
-                <Text size="sm">Opacity:</Text>
-                <Box
-                  style={{
-                    width: "70%",
-                    height: 10,
-                    backgroundColor: "#2a2a2a",
-                    borderRadius: 5,
-                    position: "relative",
-                    cursor: "pointer",
-                  }}
-                  onMouseDown={(e) => {
-                    // Handle drag logic here
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const x = e.clientX - rect.left;
-                    const percentage = Math.max(0, Math.min(1, x / rect.width));
-                    handleLinkOpacityChange(percentage);
-                  }}
-                >
-                  <Box
-                    style={{
-                      width: `${linkOpacity * 100}%`,
-                      height: "100%",
-                      backgroundColor: "#6b7280",
-                      borderRadius: 5,
-                      transition: "width 0.1s",
-                    }}
-                  />
-                  <Box
-                    style={{
-                      position: "absolute",
-                      left: `${linkOpacity * 100}%`,
-                      top: "50%",
-                      transform: `translate(-50%, -50%)`,
-                      width: 20,
-                      height: 20,
-                      backgroundColor: "white",
-                      borderRadius: "50%",
-                      border: "2px solid #6b7280",
-                      cursor: "grab",
-                      zIndex: 10,
-                    }}
-                    onMouseDown={(e) => {
-                      e.stopPropagation();
-                      // Store the parent element reference
-                      const parentElement = e.currentTarget.parentElement;
-                      const handleMouseMove = (moveEvent: MouseEvent) => {
-                        const rect = parentElement?.getBoundingClientRect();
-                        if (rect) {
-                          const x = moveEvent.clientX - rect.left;
-                          const percentage = Math.max(
-                            0,
-                            Math.min(1, x / rect.width)
-                          );
-                          handleLinkOpacityChange(percentage);
-                        }
-                      };
-                      const handleMouseUp = () => {
-                        document.removeEventListener(
-                          "mousemove",
-                          handleMouseMove
-                        );
-                        document.removeEventListener("mouseup", handleMouseUp);
-                      };
-                      document.addEventListener("mousemove", handleMouseMove);
-                      document.addEventListener("mouseup", handleMouseUp);
-                    }}
-                  />
-                </Box>
-              </Group>
-
-              {/* Divider between Link Controls and Shipping Methods */}
-              <Box
-                mt="md"
-                mb="md"
-                style={{
-                  height: 1,
-                  backgroundColor: "#4a4a4a",
-                  width: "100%",
-                }}
-              />
-
-              <Group justify="space-between" mb="xs">
-                <Title order={5}>Shipping Methods</Title>
-                <Text size="sm">Click to filter by method</Text>
-              </Group>
-              <Group gap="lg" wrap="wrap">
-                <Group
-                  gap="xs"
-                  style={{
-                    cursor: "pointer",
-                    opacity: selectedShippingMethod === "truck" ? 1 : 0.6,
-                    transition: "opacity 0.2s",
-                  }}
-                  onClick={() => handleShippingMethodClick("truck")}
-                >
-                  <Box w={32} h={2} bg="pink" />
-                  <Text size="sm">Truck (Same Country)</Text>
-                </Group>
-                <Group
-                  gap="xs"
-                  style={{
-                    cursor: "pointer",
-                    opacity: selectedShippingMethod === "airplane" ? 1 : 0.6,
-                    transition: "opacity 0.2s",
-                  }}
-                  onClick={() => handleShippingMethodClick("airplane")}
-                >
-                  <Box
-                    w={32}
-                    h={2}
-                    bg="brown"
-                    style={{ borderTop: "2px dashed brown" }}
-                  />
-                  <Text size="sm">Air (Same Continent)</Text>
-                </Group>
-                <Group
-                  gap="xs"
-                  style={{
-                    cursor: "pointer",
-                    opacity:
-                      selectedShippingMethod === "airplane-express" ? 1 : 0.6,
-                    transition: "opacity 0.2s",
-                  }}
-                  onClick={() => handleShippingMethodClick("airplane-express")}
-                >
-                  <Box
-                    w={32}
-                    h={2}
-                    bg="yellow"
-                    style={{ borderTop: "2px dashed yellow" }}
-                  />
-                  <Text size="sm">Express Air</Text>
-                </Group>
-                <Group
-                  gap="xs"
-                  style={{
-                    cursor: "pointer",
-                    opacity: selectedShippingMethod === "ship" ? 1 : 0.6,
-                    transition: "opacity 0.2s",
-                  }}
-                  onClick={() => handleShippingMethodClick("ship")}
-                >
-                  <Box
-                    w={32}
-                    h={2}
-                    bg="blue"
-                    style={{ borderTop: "2px dotted blue" }}
-                  />
-                  <Text size="sm">Ship (Cross Ocean)</Text>
-                </Group>
-                <Group
-                  gap="xs"
-                  style={{
-                    cursor: "pointer",
-                    opacity:
-                      selectedShippingMethod === "ship-express" ? 1 : 0.6,
-                    transition: "opacity 0.2s",
-                  }}
-                  onClick={() => handleShippingMethodClick("ship-express")}
-                >
-                  <Box
-                    w={32}
-                    h={2}
-                    bg="gray"
-                    style={{ borderTop: "2px dashed gray" }}
-                  />
-                  <Text size="sm">Express Ship (30%)</Text>
-                </Group>
-              </Group>
-              {/* Add spacer to fill remaining height */}
-              <div style={{ flex: 1 }} />
-
-              {/* Search and Filter Controls */}
-              <Stack
-                gap="md"
-                mt="md"
-                pt="md"
-                style={{ borderTop: "1px solid #4a4a4a" }}
-              >
-                <Title order={5}>Search & Filter</Title>
-                <Group gap="md" wrap="wrap">
-                  <Autocomplete
-                    placeholder="Search cities..."
-                    value={searchTerm}
-                    onChange={(value) => {
-                      // Extract just the city name if it includes country
-                      const cityName = value.includes(",")
-                        ? value.split(",")[0].trim()
-                        : value;
-                      handleSearch(cityName);
-                    }}
-                    leftSection={<IconSearch size={16} />}
-                    w={200}
-                    data={
-                      searchTerm.length > 0
-                        ? allCities
-                            .filter((city) =>
-                              city.city
-                                .toLowerCase()
-                                .startsWith(searchTerm.toLowerCase())
-                            )
-                            .slice(0, 10)
-                            .map((city) => `${city.city}, ${city.country}`)
-                        : []
-                    }
-                  />
-
-                  <Select
-                    value={selectedRegion}
-                    onChange={(value) => handleRegionFilter(value || "all")}
-                    data={[
-                      { value: "all", label: "All Regions" },
-                      { value: "north-america", label: "North America" },
-                      { value: "south-america", label: "South America" },
-                      { value: "europe", label: "Europe" },
-                      { value: "africa", label: "Africa" },
-                      { value: "asia", label: "Asia" },
-                      { value: "oceania", label: "Oceania" },
-                    ]}
-                    w={180}
-                  />
-                </Group>
-              </Stack>
-            </Paper>
-          </Group>
         </Paper>
-      </Box>
 
-      <Box style={{ width: "100%", maxWidth: 1200, margin: "0 auto" }}>
-        <Group justify="space-between" align="center" mb="xs">
-          <SaveStateIndicator />
-          <Group gap="xs">
-            <Button
-              leftSection={<IconZoomIn size={14} />}
-              onClick={handleZoomIn}
-              variant="light"
-              size="sm"
-            >
-              Zoom In
-            </Button>
-            <Button
-              leftSection={<IconZoomOut size={14} />}
-              onClick={handleZoomOut}
-              variant="light"
-              size="sm"
-            >
-              Zoom Out
-            </Button>
-            <Button
-              leftSection={<IconRefresh size={14} />}
-              onClick={handleResetZoom}
-              variant="light"
-              color="gray"
-              size="sm"
-            >
-              Reset
-            </Button>
-            <Button
-              leftSection={<IconMaximize size={14} />}
-              onClick={handleFitToView}
-              variant="light"
-              color="green"
-              size="sm"
-            >
-              Fit to View
-            </Button>
+        {/* Controls */}
+        <Box p="md">
+          <Group justify="space-between" align="center" mb="sm">
+            <SaveStateIndicator />
+            <ZoomControls onReset={resetView} />
           </Group>
-        </Group>
-      </Box>
-      <Box
-        ref={diagramRef}
-        bg="dark.9"
-        style={{ width: "100%", maxWidth: 1200, height: 600, margin: "0 auto" }}
-      />
+        </Box>
 
-      <Menu
-        opened={contextMenu.visible}
-        onChange={(opened) => {
-          if (!opened) {
-            setContextMenu({
-              visible: false,
-              x: 0,
-              y: 0,
-              type: null,
-              target: null,
-            });
-          }
-        }}
-        position="bottom-start"
-        withinPortal={false}
-        styles={{
-          dropdown: {
-            position: "fixed",
-            left: contextMenu.x,
-            top: contextMenu.y,
-          },
-        }}
-      >
-        <Menu.Target>
-          <div
-            style={{
-              position: "fixed",
-              left: contextMenu.x,
-              top: contextMenu.y,
-              width: 1,
-              height: 1,
-            }}
-          />
-        </Menu.Target>
-        <Menu.Dropdown>
-          {contextMenu.type === "node" && contextMenu.target && (
-            <Menu.Item onClick={handleDoubleFontSize}>
-              {(contextMenu.target as go.Node).data.city}
-            </Menu.Item>
-          )}
-          {contextMenu.type === "link" && (
-            <Menu.Item onClick={handleHalveFontSize}>Halve Font Size</Menu.Item>
-          )}
-        </Menu.Dropdown>
-      </Menu>
+        {/* Diagram */}
+        <Box
+          ref={diagramRef}
+          bg="dark.9"
+          style={{ flex: 1, margin: "0 20px 20px 20px" }}
+        />
+      </Box>
+
+      <DiagramContextMenu />
     </Box>
   );
 }

@@ -1,4 +1,4 @@
-import { Text, Group } from "@mantine/core";
+import { Text, Group, useMantineTheme } from "@mantine/core";
 
 interface KeyValuePairProps {
   label: string;
@@ -8,7 +8,7 @@ interface KeyValuePairProps {
   align?: "start" | "center" | "end";
 }
 
-//reuseable for form
+// Reusable for form
 export function KeyValuePair({
   label,
   value,
@@ -16,19 +16,25 @@ export function KeyValuePair({
   labelWidth = 100,
   align = "start",
 }: KeyValuePairProps) {
+  const theme = useMantineTheme();
   return (
-    <Group gap="xs" align="center" justify={align}>
+    <Group gap={theme.spacing.xs} align="center" justify={align}>
       <Text
         span
         fw={600}
         size={size}
-        c="gray.3"
-        style={{ minWidth: labelWidth }}
+        c={theme.other?.keyColor || "dimmed"}
+        style={{ minWidth: labelWidth, letterSpacing: 0.2, fontWeight: 600 }}
       >
         {label}:
       </Text>
       {typeof value === "string" || typeof value === "number" ? (
-        <Text span size={size} c="white">
+        <Text
+          span
+          size={size}
+          c={theme.other?.valueColor || "white"}
+          style={{ fontWeight: 500, letterSpacing: 0.1 }}
+        >
           {value}
         </Text>
       ) : (

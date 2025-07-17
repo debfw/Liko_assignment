@@ -19,5 +19,5 @@ export interface GoJSCityNodeData extends City {
   key: number;
   color: string;
   size: number;
-  location: Point;
+  location: Point | { x: number; y: number } | null;
 }
