@@ -73,4 +73,4 @@ src/
 
 ---
 
-For further details, see code comments and the `src/` directory for modular breakdowns.
+_All stylings, node calculations, and tests were done by Claude—otherwise, I'd still be struggling to center a div (just kidding, don't worry!)_
