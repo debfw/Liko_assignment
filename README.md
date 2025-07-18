@@ -1,27 +1,28 @@
 # World Shipping Network Visualization
 
-An interactive visualization of global shipping connections between major cities using Next.js, GoJS, and Mantine UI.
+A modern, interactive visualization of global shipping connections between major cities, built with Next.js, GoJS, Mantine UI, and Zustand.
 
 ## Features
 
-- **Interactive World Map**: Visualize shipping routes between major cities worldwide
-- **GoJS Diagram Tools** (controlled via toolbar buttons):
-  - **Dragging Tool**: When enabled, move nodes freely around the diagram
-  - **Linking Tool**: When enabled, create new shipping routes by dragging between nodes
-  - **Relinking Tool**: When enabled, modify existing routes by dragging link endpoints
-- **Dynamic Node Sizing**: Nodes scale based on city population with real-time resize controls
-- **Multiple Shipping Methods**: Different visual styles for truck, air, and ship routes
-- **Advanced Filtering**: Filter by region, search cities, and filter by shipping method
-- **Dark Theme**: Modern dark interface with high contrast colors
-- **Responsive Controls**: Intuitive sliders for node size and link opacity
-- **Context Menus**: Right-click functionality for nodes and links
-- **Auto-save**: State persistence using Zustand store
-- **Performance Optimized**: Efficient rendering with GoJS diagram optimizations
+- **Interactive World Map**: Visualizes shipping routes between major cities, with dynamic node placement and scaling.
+- **Diagram Controls**: Enable/disable node dragging, create or relink shipping routes, all with confirmation prompts and custom GoJS tool logic.
+- **Dynamic Node Sizing**: Node size reflects city population, adjustable in real time.
+- **Shipping Methods**: Visual distinction and filtering for truck, air, and ship routes.
+- **Search & Filter**: Fast, in-diagram search and filtering by city, country, or shipping method.
+- **Context Menus**: Right-click for quick actions on nodes/links.
+- **Zoom & View Controls**: Zoom-to-fit, reset, and real-time link opacity/thickness adjustments.
+- **Auto-save**: All diagram changes are persisted with debounced, visual save-state feedback.
+- **Dark Theme**: Custom Mantine theme for a modern, accessible UI.
+- **Performance Optimized**: Memoized calculations, lazy data loading, and selective rendering for large datasets.
 
-## Prerequisites
+## Technical Highlights
 
-- Node.js 16.x or higher
-- npm or yarn package manager
+- **Next.js 15**: App directory, SSR/CSR hybrid, MantineProvider for theming.
+- **GoJS**: Custom diagram setup, tool management, and event handling for interactive diagrams.
+- **Zustand**: Modular state stores for diagram, filters, UI controls, context menus, and save state.
+- **Custom Hooks**: Encapsulate all business logic for diagram interactions, filtering, and shipping route management.
+- **TypeScript**: Strict typing for all code, including GoJS data models and UI state.
+- **Extensible & Modular**: Easily add new features by extending hooks and store modules.
 
 ## Installation
 
@@ -54,84 +55,22 @@ yarn dev
 
 ```
 src/
-├── app/                    # Next.js app directory
-│   ├── layout.tsx         # Root layout with Mantine provider
-│   └── page.tsx           # Home page
-├── components/            # React components
-│   ├── WorldMapDiagram.tsx    # Main visualization component
-│   ├── SaveStateIndicator.tsx # Auto-save status indicator
-│   └── KeyValuePair.tsx       # Reusable key-value display
-├── stores/                # State management
-│   └── saveStateStore.ts  # Zustand store for persistence
-├── types/                 # TypeScript definitions
-│   └── gojs-types.ts     # GoJS data types
-├── utils/                 # Utility functions
-│   ├── coordinates.ts    # Lat/lng to diagram conversion
-│   ├── regions.ts        # Region detection and colors
-│   └── shipping.ts       # Shipping route generation
-└── theme/                # UI theme configuration
-    └── index.ts         # Mantine theme settings
+├── app/         # Next.js app directory (layout, entrypoint)
+├── components/  # React components (diagram, controls, UI)
+├── stores/      # Zustand state management modules
+├── hooks/       # Custom hooks for diagram logic and state
+├── types/       # TypeScript types and GoJS data models
+├── utils/       # Utility functions (coordinates, regions, shipping)
+└── theme/       # Mantine theme configuration
 ```
 
-## Design Decisions
+## For Interviewers
 
-### 1. Technology Stack (and Why I Chose It)
+- **Hooks-first, modular architecture**: All business logic is encapsulated in custom hooks and Zustand stores.
+- **Modern UI/UX**: Accessible dark theme, responsive controls, and real-time feedback for all user actions.
+- **Performance**: Optimized for large datasets with memoization and lazy loading.
+- **Tested**: Key components covered by unit tests (`src/components/__tests__`).
 
-- **Next.js 15**: The latest React framework delivering optimized performance, intuitive file-based routing, and an enhanced developer experience (DX).
-- **GoJS**: I have to (assigned).
-- **Mantine UI**: TypeScript-first React component library offering powerful theming, responsive design, built-in hooks, and a clean developer experience
-- **TypeScript**: Type safety and better developer experience
-- **Zustand**: Lightweight state management for persistence
+---
 
-### 2. Data Structure
-
-- Cities are loaded from `public/worldcities.json` with population data
-- Shipping routes are dynamically generated based on:
-  - Geographic proximity
-  - Region boundaries
-  - Population thresholds
-- Node sizes are determined by population (25px, 35px, or 45px base size)
-
-### 3. Interaction Design
-
-- **Click**: Select nodes/links and update detail panels
-- **Tool Controls** (disabled by default, enable via buttons):
-  - **Drag Nodes button**: When enabled, move nodes around the diagram
-  - **Create Links button**: When enabled, click and drag from one node to another to create new shipping routes
-  - **Relink button**: When enabled, drag link endpoints to different nodes
-- **Ctrl+Click+Drag**: Resize nodes dynamically
-- **Right-click**: Context menus for font size adjustments
-- **Hover**: Visual feedback with red borders and link highlighting
-- **Drag sliders**: Real-time adjustment of node sizes and link opacity
-
-## Performance Considerations
-
-### 1. Rendering Optimizations
-
-- **Fixed bounds**: Prevents unnecessary recalculations with `fixedBounds`
-- **Conditional rendering**: Links only update when visible
-
-### 2. Data Management
-
-- **Lazy loading**: Cities loaded asynchronously after component mount
-- **Filtered rendering**: Only visible nodes and links are processed
-- **Memoized calculations**: Base sizes cached to avoid recalculation
-- **Efficient updates**: GoJS model commits batch changes
-
-### 3. State Optimization
-
-- **Debounced saves**: Auto-save triggers are throttled
-- **Selective updates**: Only affected elements re-render
-- **Shallow comparisons**: React hooks optimized with dependency arrays
-
-### 4. Memory Management
-
-- **Cleanup on unmount**: Event listeners and diagram references cleared
-- **Limited search results**: Autocomplete shows max 10 cities
-- **Viewport culling**: GoJS automatically handles off-screen elements
-
-### 5. User Experience
-
-- **Responsive sliders**: 0.1s transitions for smooth feedback
-- **Hover states**: Instant visual feedback without layout shifts
-- **Disabled states**: Clear visual indicators for unavailable actions
+For further details, see code comments and the `src/` directory for modular breakdowns.
