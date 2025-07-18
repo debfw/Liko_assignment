@@ -1,4 +1,5 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import React from "react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
 
@@ -77,7 +78,7 @@ describe("Context Menu Actions", () => {
 
   describe("Node Context Menu", () => {
     it("shows double font size option when right-clicking a node", async () => {
-      const user = userEvent.setup();
+      // const user = userEvent.setup(); // Not used in this test
 
       render(
         <MockContextMenu
@@ -133,7 +134,7 @@ describe("Context Menu Actions", () => {
 
   describe("Link Context Menu", () => {
     it("shows halve font size option when right-clicking a link", async () => {
-      const user = userEvent.setup();
+      // const user = userEvent.setup(); // Not used in this test
 
       render(
         <MockContextMenu

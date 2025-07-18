@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
 import React from "react"; // Added missing import for React
@@ -39,7 +39,7 @@ const MockSearchAutocomplete = ({
   suggestions: string[];
   onSelect: (value: string) => void;
 }) => {
-  const [showSuggestions, setShowSuggestions] = React.useState(false);
+  const [, setShowSuggestions] = React.useState(false);
 
   return (
     <div data-testid="search-autocomplete">
