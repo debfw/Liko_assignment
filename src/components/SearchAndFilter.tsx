@@ -12,7 +12,6 @@ export function SearchAndFilter() {
   const {
     searchTerm,
     selectedShippingMethod,
-    allCities,
     setSearchTerm,
     setSelectedShippingMethod,
   } = useFilterStore();

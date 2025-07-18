@@ -12,7 +12,7 @@ interface DiagramState {
   clearSelections: () => void;
 }
 
-export const useDiagramStore = create<DiagramState>((set, get) => ({
+export const useDiagramStore = create<DiagramState>((set) => ({
   diagram: null,
   selectedCity: null,
   selectedLink: null,

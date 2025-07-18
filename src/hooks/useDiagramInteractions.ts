@@ -10,7 +10,7 @@ import type { City } from "../types/gojs-types";
 export const useDiagramInteractions = (
   onLinkCreated?: (fromCity: City, toCity: City) => void
 ) => {
-  const { diagram, setSelectedCity, setSelectedLink } = useDiagramStore();
+  const { diagram, setSelectedCity } = useDiagramStore();
   const { showContextMenu } = useContextMenuStore();
   const { isDraggingEnabled, isLinkingEnabled, isRelinkingEnabled } =
     useInteractionStore();

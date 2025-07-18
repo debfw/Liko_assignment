@@ -67,7 +67,7 @@ export const filterNodesBySearch = (diagram: go.Diagram, searchTerm: string) => 
   } else {
     const lowerSearch = searchTerm.toLowerCase();
     updateNodeVisibility(diagram, (city) => 
-      city.name.toLowerCase().includes(lowerSearch)
+      city.city.toLowerCase().includes(lowerSearch)
     );
   }
 };
@@ -76,7 +76,7 @@ export const filterLinksByMethod = (diagram: go.Diagram, method: string) => {
   if (method === "All") {
     updateLinkVisibility(diagram, () => true);
   } else {
-    updateLinkVisibility(diagram, (link) => link.method === method);
+    updateLinkVisibility(diagram, (link) => link.category === method);
   }
 };
 

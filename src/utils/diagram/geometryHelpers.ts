@@ -40,7 +40,7 @@ export const xyToLatLon = (
   return { lat, lng: lon };
 };
 
-export const calculateDistance = (city1: City, city2: City): number => {
+export const calculateCityDistance = (city1: City, city2: City): number => {
   if (!city1.lat || !city1.lng || !city2.lat || !city2.lng) {
     return 0;
   }
@@ -74,7 +74,7 @@ export const findNearestCity = (
   const target = { lat: targetLat, lng: targetLon } as unknown as City;
   
   cities.forEach(city => {
-    const distance = calculateDistance(target, city);
+    const distance = calculateCityDistance(target, city);
     if (distance < minDistance) {
       minDistance = distance;
       nearestCity = city;

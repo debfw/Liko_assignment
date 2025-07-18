@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import * as go from "gojs";
-import { Title, Text, Group, Stack, Paper, Box, Badge } from "@mantine/core";
+import { Title, Text, Group, Stack, Paper, Box } from "@mantine/core";
 
 import { convertLatLngToDiagramCoords } from "@/utils/coordinates";
 import { detectRegion, regionColors, getNodeSize } from "@/utils/regions";
@@ -57,28 +57,10 @@ export default function WorldMapDiagram() {
 
   const { showContextMenu, hideContextMenu } = useContextMenuStore();
 
-  const {
-    isDraggingEnabled,
-    isLinkingEnabled,
-    isResizing,
-    resizeTarget,
-    resizeMouseStartX,
-    setDraggingEnabled,
-    setLinkingEnabled,
-    setRelinkingEnabled,
-    startResize,
-    stopResize,
-  } = useInteractionStore();
+  const { isDraggingEnabled, isLinkingEnabled, setRelinkingEnabled } =
+    useInteractionStore();
 
   const { triggerSave } = useSaveStateStore();
-
-  const [resizeState, setResizeState] = useState<{
-    startSize?: number;
-    startFont?: string;
-  }>({
-    startSize: undefined,
-    startFont: undefined,
-  });
 
   const loadCityData = useCallback(
     async (diagram: go.Diagram) => {
@@ -133,7 +115,7 @@ export default function WorldMapDiagram() {
         });
       }
     },
-    [linkOpacity]
+    [linkOpacity, setAllCities]
   );
 
   useEffect(() => {
@@ -235,15 +217,6 @@ export default function WorldMapDiagram() {
         click: (e, node) => {
           const goNode = node as go.Node;
           const data = goNode.data as GoJSCityNodeData;
-
-          if (e.event && (e.event as MouseEvent).ctrlKey) {
-            const mouseEvent = e.event as MouseEvent;
-            const shape = goNode.findObject("SHAPE") as go.Shape;
-            if (shape) {
-              startResize(goNode, mouseEvent.clientX);
-              setResizeState({ startSize: shape.width });
-            }
-          }
 
           const cityData = {
             key: Number(data.key || data.id),
@@ -424,11 +397,7 @@ export default function WorldMapDiagram() {
         new go.Binding("fill", "color"),
         new go.Binding("width", "size"),
         new go.Binding("height", "size"),
-        new go.Binding("cursor", "", () =>
-          isResizing && resizeTarget instanceof go.Node
-            ? "nwse-resize"
-            : "pointer"
-        )
+        new go.Binding("cursor", "", () => "pointer")
       ),
       $(
         go.TextBlock,
@@ -537,8 +506,7 @@ export default function WorldMapDiagram() {
             ) {
               const textBlock = label.elt(1);
               if (textBlock instanceof go.TextBlock) {
-                startResize(goLink, (e.event as MouseEvent).clientX);
-                setResizeState({ startFont: textBlock.font });
+                // No resizing logic here
               }
             }
           } else if (label) {
@@ -643,7 +611,7 @@ export default function WorldMapDiagram() {
 
     loadCityData(myDiagram);
 
-    myDiagram.addDiagramListener("BackgroundSingleClicked", (e) => {
+    myDiagram.addDiagramListener("BackgroundSingleClicked", () => {
       const point = myDiagram.lastInput.documentPoint;
       const part = myDiagram.findPartAt(point);
 
@@ -731,56 +699,7 @@ export default function WorldMapDiagram() {
       hideContextMenu();
     };
 
-    const handleMouseMove = (e: MouseEvent) => {
-      if (isResizing && myDiagram) {
-        const deltaX = e.clientX - resizeMouseStartX;
-        const distance = Math.abs(deltaX);
-        const scaleFactor = 1 + (distance / 100) * (deltaX > 0 ? 1 : -1);
-
-        if (resizeTarget instanceof go.Node) {
-          const node = resizeTarget as go.Node;
-          const shape = node.findObject("SHAPE") as go.Shape;
-          if (shape && resizeState.startSize) {
-            const newSize = Math.max(
-              5,
-              Math.min(50, resizeState.startSize * scaleFactor)
-            );
-            myDiagram.model.commit((m) => {
-              m.set(node.data, "size", newSize);
-            });
-            triggerSave();
-          }
-        } else if (resizeTarget instanceof go.Link) {
-          const link = resizeTarget as go.Link;
-          const label = link.findObject("LABEL");
-          if (label && label instanceof go.Panel) {
-            const textBlock = label.elt(1);
-            if (textBlock instanceof go.TextBlock && resizeState.startFont) {
-              const currentSize = parseInt(
-                resizeState.startFont.match(/(\d+)px/)?.[1] || "10"
-              );
-              const newSize = Math.max(
-                6,
-                Math.min(30, currentSize * scaleFactor)
-              );
-              textBlock.font = `${Math.round(newSize)}px sans-serif`;
-              triggerSave();
-            }
-          }
-        }
-      }
-    };
-
-    const handleMouseUp = () => {
-      if (isResizing) {
-        stopResize();
-        setResizeState({ startSize: undefined, startFont: undefined });
-      }
-    };
-
     document.addEventListener("contextmenu", handleContextMenu);
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
 
     myDiagram.toolManager.relinkingTool.canStart = function () {
       const canStart = go.RelinkingTool.prototype.canStart.call(this);
@@ -981,9 +900,8 @@ export default function WorldMapDiagram() {
     return () => {
       myDiagram.div = null;
       document.removeEventListener("contextmenu", handleContextMenu);
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showLinks, isRelinkingEnabled]);
 
   useEffect(() => {
@@ -1093,6 +1011,7 @@ export default function WorldMapDiagram() {
     if (diagram && selectedCity && nodeSize) {
       handleNodeSizeChange(nodeSize);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodeSize, diagram, selectedCity]);
 
   useEffect(() => {
@@ -1165,7 +1084,7 @@ export default function WorldMapDiagram() {
         const searchLower = searchTerm.toLowerCase();
         const cityLower = city.city.toLowerCase();
         const countryLower = city.country.toLowerCase();
-        const cityCountry = `${city.city}, ${city.country}`.toLowerCase();
+        // const cityCountry = `${city.city}, ${city.country}`.toLowerCase(); // Not used
 
         const dropdownPattern = /^(.+?),\s*(.+?)\s*\(\d{1,3}(,\d{3})*\)$/;
         const dropdownMatch = searchTerm.match(dropdownPattern);
@@ -1284,54 +1203,6 @@ export default function WorldMapDiagram() {
     diagram.commitTransaction("link thickness");
   }, [diagram, selectedLinkThickness]);
 
-  const handleZoomIn = () => {
-    if (diagram) {
-      diagram.commandHandler.increaseZoom();
-    }
-  };
-
-  const handleZoomOut = () => {
-    if (diagram) {
-      diagram.commandHandler.decreaseZoom();
-    }
-  };
-
-  const handleResetZoom = () => {
-    if (diagram) {
-      diagram.scale = 1;
-      diagram.scrollToRect(diagram.documentBounds);
-      setSelectedCity(null);
-
-      diagram.nodes.each((n) => {
-        const nNode = n as go.Node;
-        const shape = nNode.findObject("SHAPE") as go.Shape;
-        if (shape) {
-          shape.strokeWidth = 2;
-          shape.stroke = "#666";
-          shape.scale = 1;
-        }
-      });
-      diagram.links.each((link) => {
-        const goLink = link as go.Link;
-        const linkShape = goLink.findObject("LINKSHAPE") as go.Shape;
-        const label = goLink.findObject("LABEL");
-        if (linkShape) {
-          linkShape.opacity = goLink.data.opacity || 1;
-          linkShape.strokeWidth = goLink.data.strokeWidth || 2;
-        }
-        if (label) {
-          label.visible = false;
-        }
-      });
-    }
-  };
-
-  const handleFitToView = () => {
-    if (diagram) {
-      diagram.zoomToFit();
-    }
-  };
-
   const handleNodeSizeChange = (sizeMultiplier: number) => {
     setNodeSize(sizeMultiplier);
     if (diagram && selectedCity) {
@@ -1377,14 +1248,9 @@ export default function WorldMapDiagram() {
     setSelectedLinkThickness(3);
     setNodeSize(1);
 
-    setDraggingEnabled(false);
-    setLinkingEnabled(false);
     setRelinkingEnabled(false);
 
     hideContextMenu();
-
-    stopResize();
-    setResizeState({ startSize: undefined, startFont: undefined });
 
     await loadCityData(diagram);
     diagram.scale = 1;
