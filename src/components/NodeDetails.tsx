@@ -66,12 +66,14 @@ export function NodeDetails({
             value={nodeSize * 100}
             onChange={(value) => onNodeSizeChange(value / 100)}
             min={50}
-            max={150}
+            max={250}
             step={10}
             marks={[
               { value: 50, label: "50%" },
               { value: 100, label: "100%" },
               { value: 150, label: "150%" },
+              { value: 200, label: "200%" },
+              { value: 250, label: "250%" },
             ]}
             styles={{
               markLabel: { fontSize: 10, marginTop: 5, color: valueColor },
@@ -109,12 +111,14 @@ export function NodeDetails({
             value={nodeSize * 100}
             onChange={(value) => onNodeSizeChange(value / 100)}
             min={50}
-            max={150}
+            max={250}
             step={10}
             marks={[
               { value: 50, label: "50%" },
               { value: 100, label: "100%" },
               { value: 150, label: "150%" },
+              { value: 200, label: "200%" },
+              { value: 250, label: "250%" },
             ]}
             styles={{
               markLabel: { fontSize: 10, marginTop: 5, color: valueColor },
