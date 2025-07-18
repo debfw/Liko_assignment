@@ -12,39 +12,24 @@ export const useDiagramFilters = (diagram: go.Diagram | null) => {
     const applyFilters = () => {
       diagram.startTransaction("filter");
 
-      // Filter nodes based on search and region
+      // Node visibility based on search
       diagram.nodes.each((node) => {
         const city = node.data as City;
         if (!city) return;
-
         let visible = true;
-
-        // Apply search filter
         if (searchTerm) {
           visible = city.city.toLowerCase().includes(searchTerm.toLowerCase());
         }
-
-        // Region filter removed as it's not in the store
-
         node.visible = visible;
       });
 
-      // Filter links based on shipping method and node visibility
+      // Link visibility based on node visibility and shipping method
       diagram.links.each((link) => {
         const linkData = link.data as ShippingLink;
         if (!linkData) return;
-
         let visible = true;
-
-        // Hide links connected to hidden nodes
-        if (link.fromNode && !link.fromNode.visible) {
-          visible = false;
-        }
-        if (link.toNode && !link.toNode.visible) {
-          visible = false;
-        }
-
-        // Apply shipping method filter
+        if (link.fromNode && !link.fromNode.visible) visible = false;
+        if (link.toNode && !link.toNode.visible) visible = false;
         if (
           visible &&
           selectedShippingMethod &&
@@ -52,14 +37,12 @@ export const useDiagramFilters = (diagram: go.Diagram | null) => {
         ) {
           visible = linkData.category === selectedShippingMethod;
         }
-
         link.visible = visible;
       });
 
       diagram.commitTransaction("filter");
     };
 
-    // Apply filters whenever they change
     applyFilters();
   }, [diagram, searchTerm, selectedShippingMethod]);
 
@@ -72,7 +55,6 @@ export const useDiagramFilters = (diagram: go.Diagram | null) => {
 
   const getVisibleNodeCount = (): number => {
     if (!diagram) return 0;
-
     let count = 0;
     diagram.nodes.each((node) => {
       if (node.visible) count++;
@@ -82,7 +64,6 @@ export const useDiagramFilters = (diagram: go.Diagram | null) => {
 
   const getVisibleLinkCount = (): number => {
     if (!diagram) return 0;
-
     let count = 0;
     diagram.links.each((link) => {
       if (link.visible) count++;
