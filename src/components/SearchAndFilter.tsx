@@ -5,6 +5,7 @@ import { IconSearch } from "@tabler/icons-react";
 import { useFilterStore, useDiagramStore } from "../stores";
 import { useMemo } from "react";
 import type { City } from "../types/gojs-types";
+import * as go from "gojs";
 
 export function SearchAndFilter() {
   const theme = useMantineTheme();
@@ -23,10 +24,9 @@ export function SearchAndFilter() {
 
     const visibleCities: City[] = [];
     if (diagram) {
-      diagram.nodes.each((node) => {
-        const goNode = node as any;
-        if (goNode.visible) {
-          visibleCities.push(goNode.data);
+      diagram.nodes.each((node: go.Node) => {
+        if (node.visible) {
+          visibleCities.push(node.data as City);
         }
       });
     }
@@ -44,7 +44,7 @@ export function SearchAndFilter() {
       })`,
       city: city,
     }));
-  }, [allCities, searchTerm, diagram]);
+  }, [searchTerm, diagram]);
 
   const handleCitySelect = (value: string) => {
     const selectedCityData = autocompleteData.find(
@@ -58,11 +58,10 @@ export function SearchAndFilter() {
 
         diagram.centerRect(node.actualBounds);
 
-        diagram.nodes.each((n) => {
-          const nNode = n as any;
-          const shape = nNode.findObject("SHAPE");
+        diagram.nodes.each((n: go.Node) => {
+          const shape = n.findObject("SHAPE") as go.Shape;
           if (shape) {
-            if (nNode.data.key === selectedCityData.city.id) {
+            if (n.data.key === selectedCityData.city.id) {
               shape.strokeWidth = 4;
               shape.stroke = "#fff";
               shape.scale = 1.5;
@@ -78,27 +77,26 @@ export function SearchAndFilter() {
 
         setSearchTerm(selectedCityData.value);
       } else {
-        let foundNode: any = null;
-        diagram.nodes.each((n) => {
-          const nNode = n as any;
+        let foundNode: go.Node | null = null;
+        diagram.nodes.each((n: go.Node) => {
           if (
-            nNode.data.city === selectedCityData.city.city &&
-            nNode.data.country === selectedCityData.city.country
+            n.data.city === selectedCityData.city.city &&
+            n.data.country === selectedCityData.city.country
           ) {
-            foundNode = nNode;
+            foundNode = n;
           }
         });
 
         if (foundNode) {
+          const node = foundNode as go.Node;
           setSelectedCity(selectedCityData.city);
 
-          diagram.centerRect(foundNode.actualBounds);
+          diagram.centerRect(node.actualBounds);
 
-          diagram.nodes.each((n) => {
-            const nNode = n as any;
-            const shape = nNode.findObject("SHAPE");
+          diagram.nodes.each((n: go.Node) => {
+            const shape = n.findObject("SHAPE") as go.Shape;
             if (shape) {
-              if (nNode === foundNode) {
+              if (n === node) {
                 shape.strokeWidth = 4;
                 shape.stroke = "#fff";
                 shape.scale = 1.5;
@@ -110,7 +108,7 @@ export function SearchAndFilter() {
             }
           });
 
-          foundNode.visible = true;
+          node.visible = true;
 
           setSearchTerm(selectedCityData.value);
         } else {

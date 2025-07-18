@@ -21,3 +21,9 @@ export interface GoJSCityNodeData extends City {
   size: number;
   location: Point | { x: number; y: number } | null;
 }
+
+export interface GoJSLinkData {
+  from: string;
+  to: string;
+  shipping?: string;
+}

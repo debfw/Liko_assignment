@@ -1,16 +1,17 @@
 import { create } from "zustand";
+import * as go from "gojs";
 
 interface InteractionState {
   isDraggingEnabled: boolean;
   isLinkingEnabled: boolean;
   isRelinkingEnabled: boolean;
   isResizing: boolean;
-  resizeTarget: any;
+  resizeTarget: go.Node | go.Link | null;
   resizeMouseStartX: number;
   setDraggingEnabled: (enabled: boolean) => void;
   setLinkingEnabled: (enabled: boolean) => void;
   setRelinkingEnabled: (enabled: boolean) => void;
-  startResize: (target: any, mouseX: number) => void;
+  startResize: (target: go.Node | go.Link, mouseX: number) => void;
   stopResize: () => void;
 }
 

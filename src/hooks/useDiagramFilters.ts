@@ -4,7 +4,7 @@ import { City, ShippingLink } from "../types";
 import { useFilterStore } from "../stores";
 
 export const useDiagramFilters = (diagram: go.Diagram | null) => {
-  const { searchTerm, selectedRegion, selectedShippingMethod } = useFilterStore();
+  const { searchTerm, selectedShippingMethod } = useFilterStore();
 
   useEffect(() => {
     if (!diagram) return;
@@ -21,13 +21,10 @@ export const useDiagramFilters = (diagram: go.Diagram | null) => {
 
         // Apply search filter
         if (searchTerm) {
-          visible = city.name.toLowerCase().includes(searchTerm.toLowerCase());
+          visible = city.city.toLowerCase().includes(searchTerm.toLowerCase());
         }
 
-        // Apply region filter
-        if (visible && selectedRegion && selectedRegion !== "All") {
-          visible = city.country === selectedRegion;
-        }
+        // Region filter removed as it's not in the store
 
         node.visible = visible;
       });
@@ -48,8 +45,12 @@ export const useDiagramFilters = (diagram: go.Diagram | null) => {
         }
 
         // Apply shipping method filter
-        if (visible && selectedShippingMethod && selectedShippingMethod !== "All") {
-          visible = linkData.method === selectedShippingMethod;
+        if (
+          visible &&
+          selectedShippingMethod &&
+          selectedShippingMethod !== "All"
+        ) {
+          visible = linkData.category === selectedShippingMethod;
         }
 
         link.visible = visible;
@@ -60,18 +61,18 @@ export const useDiagramFilters = (diagram: go.Diagram | null) => {
 
     // Apply filters whenever they change
     applyFilters();
-  }, [diagram, searchTerm, selectedRegion, selectedShippingMethod]);
+  }, [diagram, searchTerm, selectedShippingMethod]);
 
   const clearAllFilters = () => {
-    const { setSearchTerm, setSelectedRegion, setSelectedShippingMethod } = useFilterStore.getState();
+    const { setSearchTerm, setSelectedShippingMethod } =
+      useFilterStore.getState();
     setSearchTerm("");
-    setSelectedRegion("All");
-    setSelectedShippingMethod("All");
+    setSelectedShippingMethod(null);
   };
 
   const getVisibleNodeCount = (): number => {
     if (!diagram) return 0;
-    
+
     let count = 0;
     diagram.nodes.each((node) => {
       if (node.visible) count++;
@@ -81,7 +82,7 @@ export const useDiagramFilters = (diagram: go.Diagram | null) => {
 
   const getVisibleLinkCount = (): number => {
     if (!diagram) return 0;
-    
+
     let count = 0;
     diagram.links.each((link) => {
       if (link.visible) count++;
@@ -92,6 +93,6 @@ export const useDiagramFilters = (diagram: go.Diagram | null) => {
   return {
     clearAllFilters,
     getVisibleNodeCount,
-    getVisibleLinkCount
+    getVisibleLinkCount,
   };
 };

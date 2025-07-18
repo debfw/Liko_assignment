@@ -4,8 +4,15 @@ import { Switch, Text, Stack, Slider, useMantineTheme } from "@mantine/core";
 import { useUIControlsStore } from "../stores";
 import { KeyValuePair } from "./KeyValuePair";
 
+interface SelectedLinkData {
+  from: string;
+  to: string;
+  method: string;
+  distance: number;
+}
+
 interface LinkControlsProps {
-  selectedLinkData?: any;
+  selectedLinkData?: SelectedLinkData;
 }
 
 export function LinkControls({ selectedLinkData }: LinkControlsProps) {

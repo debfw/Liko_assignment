@@ -1,4 +1,12 @@
 import * as go from "gojs";
+import { GoJSCityNodeData } from "../../types/gojs-types";
+
+interface TooltipData extends Partial<GoJSCityNodeData> {
+  name?: string;
+  method?: string;
+  capacity?: number;
+  utilization?: number;
+}
 
 export const DIAGRAM_COLORS = {
   background: "#E6F3FF",
@@ -82,11 +90,11 @@ export const createTooltipTemplate = () => {
         font: "bold 14px sans-serif",
         margin: new go.Margin(0, 0, 4, 0)
       },
-      new go.Binding("text", "", (data: any) => data.name || "Unknown")),
+      new go.Binding("text", "", (data: TooltipData) => data.name || "Unknown")),
       $(go.TextBlock, {
         font: "12px sans-serif"
       },
-      new go.Binding("text", "", (data: any) => {
+      new go.Binding("text", "", (data: TooltipData) => {
         if (data.country) {
           return `Country: ${data.country}\\nPopulation: ${data.population?.toLocaleString() || "N/A"}`;
         } else if (data.method) {
