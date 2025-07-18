@@ -130,7 +130,22 @@ export function LinkControls({ selectedLinkData }: LinkControlsProps) {
           </Text>
           <KeyValuePair label="From" value={selectedLinkData.from} />
           <KeyValuePair label="To" value={selectedLinkData.to} />
-          <KeyValuePair label="Method" value={selectedLinkData.method} />
+          <KeyValuePair
+            label="Method"
+            value={
+              selectedLinkData.method === "ship"
+                ? "Ship"
+                : selectedLinkData.method === "ship-express"
+                ? "Express Ship"
+                : selectedLinkData.method === "airplane"
+                ? "Airplane"
+                : selectedLinkData.method === "airplane-express"
+                ? "Express Air"
+                : selectedLinkData.method === "truck"
+                ? "Truck"
+                : selectedLinkData.method
+            }
+          />
           <KeyValuePair
             label="Distance"
             value={`${selectedLinkData.distance?.toFixed(0)} km`}

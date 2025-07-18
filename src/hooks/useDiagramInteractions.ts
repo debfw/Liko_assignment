@@ -1,59 +1,64 @@
 import { useEffect } from "react";
 import * as go from "gojs";
-import { useDiagramStore, useContextMenuStore, useInteractionStore } from "../stores";
-import { City, ShippingLink } from "../types";
+import {
+  useDiagramStore,
+  useContextMenuStore,
+  useInteractionStore,
+} from "../stores";
+import type { City } from "../types/gojs-types";
 
 export const useDiagramInteractions = (
   onLinkCreated?: (fromCity: City, toCity: City) => void
 ) => {
   const { diagram, setSelectedCity, setSelectedLink } = useDiagramStore();
   const { showContextMenu } = useContextMenuStore();
-  const { isDraggingEnabled, isLinkingEnabled, isRelinkingEnabled } = useInteractionStore();
+  const { isDraggingEnabled, isLinkingEnabled, isRelinkingEnabled } =
+    useInteractionStore();
 
   useEffect(() => {
     if (!diagram) return;
 
-    // Update dragging tool based on state
     diagram.toolManager.draggingTool.isEnabled = isDraggingEnabled;
   }, [diagram, isDraggingEnabled]);
 
   useEffect(() => {
     if (!diagram) return;
 
-    // Update linking tool based on state
     diagram.toolManager.linkingTool.isEnabled = isLinkingEnabled;
-    
+
+    let linkDrawnHandler: ((e: go.DiagramEvent) => void) | null = null;
+
     if (isLinkingEnabled && onLinkCreated) {
-      // Set up link creation callback
-      diagram.toolManager.linkingTool.doActivate = function() {
+      diagram.toolManager.linkingTool.doActivate = function () {
         const tool = this as go.LinkingTool;
         go.LinkingTool.prototype.doActivate.call(tool);
       };
 
-      diagram.addDiagramListener("LinkDrawn", (e: go.DiagramEvent) => {
+      linkDrawnHandler = (e: go.DiagramEvent) => {
         const link = e.subject as go.Link;
         if (link && link.fromNode && link.toNode) {
           const fromCity = link.fromNode.data as City;
           const toCity = link.toNode.data as City;
-          
-          // Remove the temporary link
+
           diagram.remove(link);
-          
-          // Call the callback to create the actual link
+
           onLinkCreated(fromCity, toCity);
         }
-      });
+      };
+
+      diagram.addDiagramListener("LinkDrawn", linkDrawnHandler);
     }
 
     return () => {
-      diagram.removeDiagramListener("LinkDrawn");
+      if (linkDrawnHandler) {
+        diagram.removeDiagramListener("LinkDrawn", linkDrawnHandler);
+      }
     };
   }, [diagram, isLinkingEnabled, onLinkCreated]);
 
   useEffect(() => {
     if (!diagram) return;
 
-    // Update relinking tool based on state
     diagram.toolManager.relinkingTool.isEnabled = isRelinkingEnabled;
   }, [diagram, isRelinkingEnabled]);
 
@@ -61,28 +66,29 @@ export const useDiagramInteractions = (
     setSelectedCity(city);
   };
 
-  const handleLinkClick = (link: ShippingLink) => {
-    setSelectedLink(link);
-  };
-
   const handleContextMenu = (
-    e: go.InputEvent, 
-    type: "node" | "link" | "background", 
+    e: go.InputEvent,
+    type: "node" | "link" | "background",
     target?: go.GraphObject
   ) => {
     const canvas = diagram?.div;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const x = e.event.clientX - rect.left;
-    const y = e.event.clientY - rect.top;
+    if (!e.event) return;
+    const mouseEvent = e.event as MouseEvent;
+    const x = mouseEvent.clientX - rect.left;
+    const y = mouseEvent.clientY - rect.top;
 
-    showContextMenu(x, y, type, target || null);
+    if (type === "background") return;
+    if (!target) return;
+    if (type === "node" && !(target instanceof go.Node)) return;
+    if (type === "link" && !(target instanceof go.Link)) return;
+    showContextMenu({ x, y, type, target: target as go.Node | go.Link });
   };
 
   return {
     handleNodeClick,
-    handleLinkClick,
-    handleContextMenu
+    handleContextMenu,
   };
 };
