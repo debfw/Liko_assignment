@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import * as go from "gojs";
 
 interface InteractionState {
   isDraggingEnabled: boolean;

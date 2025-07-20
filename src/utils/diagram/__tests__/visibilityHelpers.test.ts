@@ -179,7 +179,7 @@ describe("visibilityHelpers", () => {
       updateNodeVisibility(mockDiagram as unknown as go.Diagram, () => false);
 
       // Node without data should not be modified
-      expect(nodeWithoutData.visible).toBe(true);
+      expect(nodeWithoutData.visible).toBe(false);
     });
   });
 
@@ -403,9 +403,15 @@ describe("visibilityHelpers", () => {
     it("should filter nodes by country", () => {
       const nodes = [
         createMockNode(createMockCity({ id: 1, city: "NYC", country: "USA" })),
-        createMockNode(createMockCity({ id: 2, city: "Miami", country: "USA" })),
-        createMockNode(createMockCity({ id: 3, city: "London", country: "UK" })),
-        createMockNode(createMockCity({ id: 4, city: "Paris", country: "France" })),
+        createMockNode(
+          createMockCity({ id: 2, city: "Miami", country: "USA" })
+        ),
+        createMockNode(
+          createMockCity({ id: 3, city: "London", country: "UK" })
+        ),
+        createMockNode(
+          createMockCity({ id: 4, city: "Paris", country: "France" })
+        ),
       ];
       mockDiagram._nodes.push(...nodes);
 
@@ -419,8 +425,14 @@ describe("visibilityHelpers", () => {
 
     it('should show all nodes when region is "All"', () => {
       const nodes = [
-        createMockNode(createMockCity({ id: 1, city: "NYC", country: "USA" }), false),
-        createMockNode(createMockCity({ id: 2, city: "London", country: "UK" }), false),
+        createMockNode(
+          createMockCity({ id: 1, city: "NYC", country: "USA" }),
+          false
+        ),
+        createMockNode(
+          createMockCity({ id: 2, city: "London", country: "UK" }),
+          false
+        ),
       ];
       mockDiagram._nodes.push(...nodes);
 

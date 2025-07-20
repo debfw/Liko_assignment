@@ -10,9 +10,10 @@ interface DiagramState {
   setSelectedCity: (city: City | null) => void;
   setSelectedLink: (link: go.Link | null) => void;
   clearSelections: () => void;
+  cleanup: () => void;
 }
 
-export const useDiagramStore = create<DiagramState>((set) => ({
+export const useDiagramStore = create<DiagramState>((set, get) => ({
   diagram: null,
   selectedCity: null,
   selectedLink: null,
@@ -27,4 +28,13 @@ export const useDiagramStore = create<DiagramState>((set) => ({
   },
   setSelectedLink: (link) => set({ selectedLink: link, selectedCity: null }),
   clearSelections: () => set({ selectedCity: null, selectedLink: null }),
+  cleanup: () => {
+    const { diagram } = get();
+    if (diagram) {
+      diagram.clear();
+      diagram.model = new go.GraphLinksModel();
+      diagram.div = null;
+    }
+    set({ diagram: null, selectedCity: null, selectedLink: null });
+  },
 }));

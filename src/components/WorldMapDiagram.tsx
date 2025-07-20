@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo, memo } from "react";
 import * as go from "gojs";
 import { Title, Text, Group, Stack, Paper, Box } from "@mantine/core";
 
@@ -24,7 +24,7 @@ import {
 } from "../stores";
 import { useDiagramInteractions } from "../hooks/useDiagramInteractions";
 
-export default function WorldMapDiagram() {
+const WorldMapDiagram = memo(function WorldMapDiagram() {
   const diagramRef = useRef<HTMLDivElement>(null);
   const { isRelinkingEnabled } = useInteractionStore();
 
@@ -62,6 +62,7 @@ export default function WorldMapDiagram() {
 
   const { triggerSave } = useSaveStateStore();
 
+  // Memoize the loadCityData function to prevent unnecessary re-creations
   const loadCityData = useCallback(
     async (diagram: go.Diagram) => {
       try {
@@ -898,7 +899,11 @@ export default function WorldMapDiagram() {
     };
 
     return () => {
-      myDiagram.div = null;
+      if (myDiagram) {
+        myDiagram.clear();
+        myDiagram.model = new go.GraphLinksModel();
+        myDiagram.div = null;
+      }
       document.removeEventListener("contextmenu", handleContextMenu);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1203,38 +1208,43 @@ export default function WorldMapDiagram() {
     diagram.commitTransaction("link thickness");
   }, [diagram, selectedLinkThickness]);
 
-  const handleNodeSizeChange = (sizeMultiplier: number) => {
-    setNodeSize(sizeMultiplier);
-    if (diagram && selectedCity) {
-      diagram.nodes.each((node) => {
-        const goNode = node as go.Node;
-        if (goNode.data.key === selectedCity.key) {
-          const shape = goNode.findObject("SHAPE") as go.Shape;
-          const label = goNode.findObject("LABEL") as go.TextBlock;
+  const handleNodeSizeChange = useCallback(
+    (sizeMultiplier: number) => {
+      setNodeSize(sizeMultiplier);
+      if (diagram && selectedCity) {
+        diagram.startTransaction("resize node");
+        diagram.nodes.each((node) => {
+          const goNode = node as go.Node;
+          if (goNode.data.key === selectedCity.key) {
+            const shape = goNode.findObject("SHAPE") as go.Shape;
+            const label = goNode.findObject("LABEL") as go.TextBlock;
 
-          if (shape) {
-            const baseSize =
-              goNode.data.size || getNodeSize(goNode.data.population);
-            const newSize = baseSize * sizeMultiplier;
-            shape.width = newSize;
-            shape.height = newSize;
+            if (shape) {
+              const baseSize =
+                goNode.data.size || getNodeSize(goNode.data.population);
+              const newSize = baseSize * sizeMultiplier;
+              shape.width = newSize;
+              shape.height = newSize;
+            }
+
+            if (label) {
+              const baseFontSize = 10;
+              const newFontSize = Math.max(
+                6,
+                Math.min(24, baseFontSize * sizeMultiplier)
+              );
+              label.font = `bold ${newFontSize}px sans-serif`;
+            }
           }
+        });
+        diagram.commitTransaction("resize node");
+        triggerSave();
+      }
+    },
+    [diagram, selectedCity, triggerSave]
+  );
 
-          if (label) {
-            const baseFontSize = 10;
-            const newFontSize = Math.max(
-              6,
-              Math.min(24, baseFontSize * sizeMultiplier)
-            );
-            label.font = `bold ${newFontSize}px sans-serif`;
-          }
-        }
-      });
-      triggerSave();
-    }
-  };
-
-  const resetView = async () => {
+  const resetView = useCallback(async () => {
     if (!diagram) return;
 
     setSelectedCity(null);
@@ -1255,7 +1265,45 @@ export default function WorldMapDiagram() {
     await loadCityData(diagram);
     diagram.scale = 1;
     diagram.scrollToRect(diagram.documentBounds);
-  };
+  }, [
+    diagram,
+    loadCityData,
+    setSearchTerm,
+    setSelectedShippingMethod,
+    setShowLinks,
+    setLinkOpacity,
+    setSelectedLinkThickness,
+    setRelinkingEnabled,
+    hideContextMenu,
+    setSelectedLink,
+  ]);
+
+  const selectedLinkData = useMemo(() => {
+    if (!selectedLink) return undefined;
+    return {
+      from:
+        selectedLink.fromNode?.data?.city || `City ${selectedLink.data.from}`,
+      to: selectedLink.toNode?.data?.city || `City ${selectedLink.data.to}`,
+      method:
+        selectedLink.data.category || selectedLink.data.method || "Unknown",
+      distance: Math.round(
+        selectedLink.fromNode && selectedLink.toNode
+          ? Math.sqrt(
+              Math.pow(
+                selectedLink.fromNode.location.x -
+                  selectedLink.toNode.location.x,
+                2
+              ) +
+                Math.pow(
+                  selectedLink.fromNode.location.y -
+                    selectedLink.toNode.location.y,
+                  2
+                )
+            )
+          : 0
+      ),
+    };
+  }, [selectedLink]);
 
   return (
     <Box className="w-full h-screen flex" bg="dark.8">
@@ -1289,40 +1337,7 @@ export default function WorldMapDiagram() {
             <Title order={5} mb="sm">
               Link Controls
             </Title>
-            <LinkControls
-              selectedLinkData={
-                selectedLink
-                  ? {
-                      from:
-                        selectedLink.fromNode?.data?.city ||
-                        `City ${selectedLink.data.from}`,
-                      to:
-                        selectedLink.toNode?.data?.city ||
-                        `City ${selectedLink.data.to}`,
-                      method:
-                        selectedLink.data.category ||
-                        selectedLink.data.method ||
-                        "Unknown",
-                      distance: Math.round(
-                        selectedLink.fromNode && selectedLink.toNode
-                          ? Math.sqrt(
-                              Math.pow(
-                                selectedLink.fromNode.location.x -
-                                  selectedLink.toNode.location.x,
-                                2
-                              ) +
-                                Math.pow(
-                                  selectedLink.fromNode.location.y -
-                                    selectedLink.toNode.location.y,
-                                  2
-                                )
-                            )
-                          : 0
-                      ),
-                    }
-                  : undefined
-              }
-            />
+            <LinkControls selectedLinkData={selectedLinkData} />
           </Paper>
 
           <Paper p="sm" radius="md" bg="dark.6" withBorder>
@@ -1364,4 +1379,6 @@ export default function WorldMapDiagram() {
       <DiagramContextMenu />
     </Box>
   );
-}
+});
+
+export default WorldMapDiagram;

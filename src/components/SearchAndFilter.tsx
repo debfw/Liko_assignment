@@ -3,11 +3,11 @@
 import { Autocomplete, Select, useMantineTheme, Text } from "@mantine/core";
 import { IconSearch } from "@tabler/icons-react";
 import { useFilterStore, useDiagramStore } from "../stores";
-import { useMemo } from "react";
+import { useMemo, useCallback, memo } from "react";
 import type { City } from "../types/gojs-types";
 import * as go from "gojs";
 
-export function SearchAndFilter() {
+export const SearchAndFilter = memo(function SearchAndFilter() {
   const theme = useMantineTheme();
   const {
     searchTerm,
@@ -18,114 +18,127 @@ export function SearchAndFilter() {
 
   const { diagram, setSelectedCity } = useDiagramStore();
 
+  const searchTermLower = useMemo(
+    () => searchTerm?.toLowerCase() || "",
+    [searchTerm]
+  );
+
   const autocompleteData = useMemo(() => {
-    if (!searchTerm || searchTerm.length === 0) return [];
+    if (!searchTermLower || searchTermLower.length === 0) return [];
 
     const visibleCities: City[] = [];
     if (diagram) {
       diagram.nodes.each((node: go.Node) => {
         if (node.visible) {
-          visibleCities.push(node.data as City);
+          const city = node.data as City;
+          if (
+            city.city.toLowerCase().includes(searchTermLower) ||
+            city.country.toLowerCase().includes(searchTermLower)
+          ) {
+            visibleCities.push(city);
+          }
         }
       });
     }
 
-    const filteredCities = visibleCities.filter(
-      (city) =>
-        city.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        city.country.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    return filteredCities.slice(0, 15).map((city) => ({
+    return visibleCities.slice(0, 15).map((city) => ({
       value: `${city.city}, ${city.country}`,
       label: `${city.city}, ${city.country} (${
         city.population?.toLocaleString() || "N/A"
       })`,
       city: city,
     }));
-  }, [searchTerm, diagram]);
+  }, [searchTermLower, diagram]);
 
-  const handleCitySelect = (value: string) => {
-    const selectedCityData = autocompleteData.find(
-      (item) => item.value === value
-    );
+  const highlightNode = useCallback(
+    (targetNode: go.Node, isSelected: boolean) => {
+      const shape = targetNode.findObject("SHAPE") as go.Shape;
+      if (shape) {
+        if (isSelected) {
+          shape.strokeWidth = 4;
+          shape.stroke = "#fff";
+          shape.scale = 1.5;
+        } else {
+          shape.strokeWidth = 2;
+          shape.stroke = "#666";
+          shape.scale = 1;
+        }
+      }
+    },
+    []
+  );
 
-    if (selectedCityData && diagram) {
-      const node = diagram.findNodeForKey(selectedCityData.city.id);
-      if (node) {
-        setSelectedCity(selectedCityData.city);
+  const handleCitySelect = useCallback(
+    (value: string) => {
+      const selectedCityData = autocompleteData.find(
+        (item) => item.value === value
+      );
 
-        diagram.centerRect(node.actualBounds);
-
-        diagram.nodes.each((n: go.Node) => {
-          const shape = n.findObject("SHAPE") as go.Shape;
-          if (shape) {
-            if (n.data.key === selectedCityData.city.id) {
-              shape.strokeWidth = 4;
-              shape.stroke = "#fff";
-              shape.scale = 1.5;
-            } else {
-              shape.strokeWidth = 2;
-              shape.stroke = "#666";
-              shape.scale = 1;
-            }
-          }
-        });
-
-        node.visible = true;
-
-        setSearchTerm(selectedCityData.value);
-      } else {
-        let foundNode: go.Node | null = null;
-        diagram.nodes.each((n: go.Node) => {
-          if (
-            n.data.city === selectedCityData.city.city &&
-            n.data.country === selectedCityData.city.country
-          ) {
-            foundNode = n;
-          }
-        });
-
-        if (foundNode) {
-          const node = foundNode as go.Node;
+      if (selectedCityData && diagram) {
+        const node = diagram.findNodeForKey(selectedCityData.city.id);
+        if (node) {
           setSelectedCity(selectedCityData.city);
 
           diagram.centerRect(node.actualBounds);
 
+          diagram.startTransaction("highlight city");
           diagram.nodes.each((n: go.Node) => {
-            const shape = n.findObject("SHAPE") as go.Shape;
-            if (shape) {
-              if (n === node) {
-                shape.strokeWidth = 4;
-                shape.stroke = "#fff";
-                shape.scale = 1.5;
-              } else {
-                shape.strokeWidth = 2;
-                shape.stroke = "#666";
-                shape.scale = 1;
-              }
-            }
+            highlightNode(n, n.data.key === selectedCityData.city.id);
           });
+          diagram.commitTransaction("highlight city");
 
           node.visible = true;
 
           setSearchTerm(selectedCityData.value);
         } else {
-          console.log("Node not found for city:", selectedCityData.city);
-          console.log("Looking for key:", selectedCityData.city.id);
-          console.log("Available nodes:", diagram.nodes.count);
+          let foundNode: go.Node | null = null;
+          diagram.nodes.each((n: go.Node) => {
+            if (
+              n.data.city === selectedCityData.city.city &&
+              n.data.country === selectedCityData.city.country
+            ) {
+              foundNode = n;
+            }
+          });
+
+          if (foundNode) {
+            const node = foundNode as go.Node;
+            setSelectedCity(selectedCityData.city);
+
+            diagram.centerRect(node.actualBounds);
+
+            // Use batch transaction for better performance
+            diagram.startTransaction("highlight city");
+            diagram.nodes.each((n: go.Node) => {
+              highlightNode(n, n === node);
+            });
+            diagram.commitTransaction("highlight city");
+
+            node.visible = true;
+
+            setSearchTerm(selectedCityData.value);
+          } else {
+            console.log("Node not found for city:", selectedCityData.city);
+            console.log("Looking for key:", selectedCityData.city.id);
+            console.log("Available nodes:", diagram.nodes.count);
+          }
         }
       }
-    }
-  };
+    },
+    [autocompleteData, diagram, setSelectedCity, setSearchTerm, highlightNode]
+  );
 
-  const shippingMethodOptions = [
-    { value: "truck", label: "Truck (Same Country)" },
-    { value: "airplane", label: "Air (Same Continent)" },
-    { value: "airplane-express", label: "Express Air" },
-    { value: "ship", label: "Ship (Cross Ocean)" },
-    { value: "ship-express", label: "Express Ship" },
-  ];
+  // Memoize shipping method options
+  const shippingMethodOptions = useMemo(
+    () => [
+      { value: "truck", label: "Truck (Same Country)" },
+      { value: "airplane", label: "Air (Same Continent)" },
+      { value: "airplane-express", label: "Express Air" },
+      { value: "ship", label: "Ship (Cross Ocean)" },
+      { value: "ship-express", label: "Express Ship" },
+    ],
+    []
+  );
 
   return (
     <>
@@ -170,4 +183,4 @@ export function SearchAndFilter() {
       />
     </>
   );
-}
+});

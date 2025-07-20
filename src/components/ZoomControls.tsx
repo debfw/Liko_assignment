@@ -9,12 +9,13 @@ import {
   IconUnlink,
 } from "@tabler/icons-react";
 import { useDiagramStore, useInteractionStore } from "../stores";
+import { memo, useCallback } from "react";
 
 interface ZoomControlsProps {
   onReset: () => Promise<void>;
 }
 
-export function ZoomControls({ onReset }: ZoomControlsProps) {
+export const ZoomControls = memo(function ZoomControls({ onReset }: ZoomControlsProps) {
   const { diagram } = useDiagramStore();
   const {
     isDraggingEnabled,
@@ -25,13 +26,14 @@ export function ZoomControls({ onReset }: ZoomControlsProps) {
     setRelinkingEnabled,
   } = useInteractionStore();
 
-  const handleZoomToFit = () => {
+  // Memoize all handlers to prevent re-renders
+  const handleZoomToFit = useCallback(() => {
     if (diagram) {
       diagram.zoomToFit();
     }
-  };
+  }, [diagram]);
 
-  const handleToggleDragging = () => {
+  const handleToggleDragging = useCallback(() => {
     if (!isDraggingEnabled) {
       const confirmed = window.confirm(
         "You sure the citizens agreed to this relocation?"
@@ -46,9 +48,9 @@ export function ZoomControls({ onReset }: ZoomControlsProps) {
       setDraggingEnabled(false);
       alert("Node dragging has been disabled");
     }
-  };
+  }, [isDraggingEnabled, setDraggingEnabled, setLinkingEnabled, setRelinkingEnabled]);
 
-  const handleToggleLinking = () => {
+  const handleToggleLinking = useCallback(() => {
     if (!isLinkingEnabled) {
       const confirmed = window.confirm(
         "Your bank account might be billed after creating a new route"
@@ -63,9 +65,9 @@ export function ZoomControls({ onReset }: ZoomControlsProps) {
       setLinkingEnabled(false);
       alert("Link creation has been disabled");
     }
-  };
+  }, [isLinkingEnabled, setDraggingEnabled, setLinkingEnabled, setRelinkingEnabled]);
 
-  const handleToggleRelinking = () => {
+  const handleToggleRelinking = useCallback(() => {
     if (!isRelinkingEnabled) {
       const confirmed = window.confirm(
         "You better not mess with the holiday inventory"
@@ -80,7 +82,7 @@ export function ZoomControls({ onReset }: ZoomControlsProps) {
       setRelinkingEnabled(false);
       alert("Link relinking has been disabled");
     }
-  };
+  }, [isRelinkingEnabled, setDraggingEnabled, setLinkingEnabled, setRelinkingEnabled]);
 
   return (
     <Group justify="space-between">
@@ -136,4 +138,4 @@ export function ZoomControls({ onReset }: ZoomControlsProps) {
       </Group>
     </Group>
   );
-}
+});
