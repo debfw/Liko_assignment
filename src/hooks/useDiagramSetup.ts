@@ -6,7 +6,7 @@ import { useDiagramStore } from "../stores";
 interface DiagramSetupConfig {
   diagramRef: React.RefObject<HTMLDivElement | null>;
   nodeDataArray: GoJSCityNodeData[];
-  linkDataArray: any[];
+  linkDataArray: go.GraphLinksModel["linkDataArray"];
   linkOpacity: number;
   onCitySelect: (city: GoJSCityNodeData | null) => void;
   onLinkSelect: (link: go.Link | null) => void;
@@ -14,7 +14,12 @@ interface DiagramSetupConfig {
   onLinkThicknessChange: (thickness: number) => void;
   selectedCity?: GoJSCityNodeData | null;
   triggerSave: () => void;
-  showContextMenu: (config: any) => void;
+  showContextMenu: (config: {
+    x: number;
+    y: number;
+    type: "node" | "link";
+    target: go.Node | go.Link;
+  }) => void;
   hideContextMenu: () => void;
 }
 
@@ -371,7 +376,6 @@ export function useDiagramSetup({
         },
         click: (e, link) => {
           const goLink = link as go.Link;
-          const label = goLink.findObject("LABEL");
 
           callbacksRef.current.onLinkSelect(goLink);
 

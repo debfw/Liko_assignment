@@ -3,7 +3,7 @@
 import { Title, Text, Slider, useMantineTheme } from "@mantine/core";
 import { KeyValuePair } from "./KeyValuePair";
 import type { GoJSCityNodeData } from "../types/gojs-types";
-import { memo, useMemo, useCallback } from "react";
+import { memo, useCallback } from "react";
 
 interface NodeDetailsProps {
   selectedCity: GoJSCityNodeData | null;
@@ -58,22 +58,19 @@ export const NodeDetails = memo(function NodeDetails({
     </div>
   );
 
-  const cityCoordinates = useMemo(() => {
-    if (!selectedCity) return "N/A";
-    return `${selectedCity.lat.toFixed(2)}, ${selectedCity.lng.toFixed(2)}`;
-  }, [selectedCity]);
+  const cityCoordinates = selectedCity
+    ? `${selectedCity.lat.toFixed(2)}, ${selectedCity.lng.toFixed(2)}`
+    : "N/A";
 
-  const formattedPopulation = useMemo(() => {
-    if (!selectedCity) return "N/A";
-    return selectedCity.population?.toLocaleString() || "N/A";
-  }, [selectedCity]);
+  const formattedPopulation = selectedCity
+    ? selectedCity.population?.toLocaleString() || "N/A"
+    : "N/A";
 
-  const diagramPosition = useMemo(() => {
-    if (!selectedCity?.location) return null;
-    return `x: ${selectedCity.location.x?.toFixed(
-      0
-    )}, y: ${selectedCity.location.y?.toFixed(0)}`;
-  }, [selectedCity]);
+  const diagramPosition = selectedCity?.location
+    ? `x: ${selectedCity.location.x?.toFixed(
+        0
+      )}, y: ${selectedCity.location.y?.toFixed(0)}`
+    : null;
 
   const sliderValue = nodeSize * 100;
   return (

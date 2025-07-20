@@ -19,7 +19,9 @@ const WorldMapDiagram = dynamic(() => import("@/components/WorldMapDiagram"), {
 
 export default function Home() {
   const [nodeDataArray, setNodeDataArray] = useState<GoJSCityNodeData[]>([]);
-  const [linkDataArray, setLinkDataArray] = useState<any[]>([]);
+  const [linkDataArray, setLinkDataArray] = useState<
+    go.GraphLinksModel["linkDataArray"]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadCityData = async () => {

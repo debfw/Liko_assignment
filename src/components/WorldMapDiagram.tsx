@@ -27,7 +27,7 @@ import { useDiagramStyling } from "../hooks/useDiagramStyling";
 
 interface WorldMapDiagramProps {
   nodeDataArray: GoJSCityNodeData[];
-  linkDataArray: any[];
+  linkDataArray: go.GraphLinksModel["linkDataArray"];
   loadCityData: (diagram: go.Diagram) => Promise<void>;
 }
 
@@ -44,8 +44,7 @@ const WorldMapDiagram = memo(function WorldMapDiagram({
   );
   const [nodeSize, setNodeSize] = useState<number>(1);
 
-  const { diagram, selectedLink, setDiagram, setSelectedLink } =
-    useDiagramStore();
+  const { diagram, selectedLink, setSelectedLink } = useDiagramStore();
 
   const {
     searchTerm,
@@ -163,6 +162,12 @@ const WorldMapDiagram = memo(function WorldMapDiagram({
   const resetView = useCallback(async () => {
     if (!diagram) return;
 
+    setRelinkingEnabled(false);
+    setDraggingEnabled(false);
+    setLinkingEnabled(false);
+
+    loadCityData(diagram);
+
     setSelectedCity(null);
     setSelectedLink(null);
 
@@ -175,10 +180,6 @@ const WorldMapDiagram = memo(function WorldMapDiagram({
     setNodeSize(1);
 
     hideContextMenu();
-    await loadCityData(diagram);
-
-    diagram.scale = 1;
-    diagram.scrollToRect(diagram.documentBounds);
   }, [
     diagram,
     loadCityData,

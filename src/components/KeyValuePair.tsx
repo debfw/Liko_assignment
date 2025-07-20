@@ -1,5 +1,5 @@
 import { Text, Group, useMantineTheme } from "@mantine/core";
-import { memo, useMemo } from "react";
+import { memo } from "react";
 
 interface KeyValuePairProps {
   label: string;

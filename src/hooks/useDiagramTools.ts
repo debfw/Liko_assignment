@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import * as go from "gojs";
-import { useDiagramStore } from "../stores";
 
 export function useDiagramTools(
   diagram: go.Diagram | null,

@@ -1,6 +1,40 @@
+import React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
+
+// Mock data for WorldMapDiagram props
+const mockNodeDataArray = [
+  {
+    id: 1,
+    key: 1,
+    city: "New York",
+    city_ascii: "New York",
+    country: "United States",
+    iso2: "US",
+    iso3: "USA",
+    admin_name: "New York",
+    lat: 40.7128,
+    lng: -74.006,
+    population: 8336817,
+    region: "North America",
+    color: "#60A5FA",
+    size: 10,
+    location: { x: 100, y: 100 },
+  },
+];
+
+const mockLinkDataArray = [
+  {
+    from: 1,
+    to: 2,
+    category: "ship",
+    stroke: "#0066ff",
+    strokeWidth: 2,
+  },
+];
+
+const mockLoadCityData = jest.fn().mockResolvedValue(undefined);
 
 // Mock the components that depend on GoJS
 jest.mock("../WorldMapDiagram", () => {
@@ -121,7 +155,13 @@ import WorldMapDiagram from "../WorldMapDiagram";
 describe("WorldMapDiagram", () => {
   describe("Initial Rendering", () => {
     it("renders the main title and subtitle", () => {
-      render(<WorldMapDiagram />);
+      render(
+        <WorldMapDiagram
+          nodeDataArray={mockNodeDataArray}
+          linkDataArray={mockLinkDataArray}
+          loadCityData={mockLoadCityData}
+        />
+      );
 
       expect(
         screen.getByText("World Shipping Network Visualization")
@@ -132,7 +172,13 @@ describe("WorldMapDiagram", () => {
     });
 
     it("renders the node details card with default state", () => {
-      render(<WorldMapDiagram />);
+      render(
+        <WorldMapDiagram
+          nodeDataArray={mockNodeDataArray}
+          linkDataArray={mockLinkDataArray}
+          loadCityData={mockLoadCityData}
+        />
+      );
 
       expect(screen.getByTestId("node-details-card")).toBeInTheDocument();
       expect(screen.getByText("Node Details")).toBeInTheDocument();
@@ -143,7 +189,13 @@ describe("WorldMapDiagram", () => {
     });
 
     it("renders the link controls card", () => {
-      render(<WorldMapDiagram />);
+      render(
+        <WorldMapDiagram
+          nodeDataArray={mockNodeDataArray}
+          linkDataArray={mockLinkDataArray}
+          loadCityData={mockLoadCityData}
+        />
+      );
 
       expect(screen.getByTestId("link-controls-card")).toBeInTheDocument();
       expect(screen.getByText("Link Controls")).toBeInTheDocument();
@@ -151,7 +203,13 @@ describe("WorldMapDiagram", () => {
     });
 
     it("renders the search and filter controls", () => {
-      render(<WorldMapDiagram />);
+      render(
+        <WorldMapDiagram
+          nodeDataArray={mockNodeDataArray}
+          linkDataArray={mockLinkDataArray}
+          loadCityData={mockLoadCityData}
+        />
+      );
 
       expect(screen.getByTestId("search-filter")).toBeInTheDocument();
       expect(screen.getByText("Search & Filter")).toBeInTheDocument();
@@ -163,7 +221,13 @@ describe("WorldMapDiagram", () => {
   describe("Search and Filter Functionality", () => {
     it("allows searching for cities", async () => {
       const user = userEvent.setup();
-      render(<WorldMapDiagram />);
+      render(
+        <WorldMapDiagram
+          nodeDataArray={mockNodeDataArray}
+          linkDataArray={mockLinkDataArray}
+          loadCityData={mockLoadCityData}
+        />
+      );
 
       const searchInput = screen.getByTestId("search-input");
       await user.type(searchInput, "New York");
@@ -173,7 +237,13 @@ describe("WorldMapDiagram", () => {
 
     it("filters by region when dropdown is changed", async () => {
       const user = userEvent.setup();
-      render(<WorldMapDiagram />);
+      render(
+        <WorldMapDiagram
+          nodeDataArray={mockNodeDataArray}
+          linkDataArray={mockLinkDataArray}
+          loadCityData={mockLoadCityData}
+        />
+      );
 
       const regionSelect = screen.getByTestId("region-select");
       await user.selectOptions(regionSelect, "north-america");
@@ -182,7 +252,13 @@ describe("WorldMapDiagram", () => {
     });
 
     it("shows all region options", () => {
-      render(<WorldMapDiagram />);
+      render(
+        <WorldMapDiagram
+          nodeDataArray={mockNodeDataArray}
+          linkDataArray={mockLinkDataArray}
+          loadCityData={mockLoadCityData}
+        />
+      );
 
       const regionSelect = screen.getByTestId("region-select");
       expect(regionSelect).toHaveDisplayValue("All Regions");
@@ -195,7 +271,13 @@ describe("WorldMapDiagram", () => {
   describe("Link Controls", () => {
     it("toggles link visibility when switch is clicked", async () => {
       const user = userEvent.setup();
-      render(<WorldMapDiagram />);
+      render(
+        <WorldMapDiagram
+          nodeDataArray={mockNodeDataArray}
+          linkDataArray={mockLinkDataArray}
+          loadCityData={mockLoadCityData}
+        />
+      );
 
       const linkToggle = screen.getByTestId("link-toggle");
       expect(linkToggle).toBeChecked();
@@ -206,7 +288,13 @@ describe("WorldMapDiagram", () => {
     });
 
     it("shows shipping methods section", () => {
-      render(<WorldMapDiagram />);
+      render(
+        <WorldMapDiagram
+          nodeDataArray={mockNodeDataArray}
+          linkDataArray={mockLinkDataArray}
+          loadCityData={mockLoadCityData}
+        />
+      );
 
       expect(screen.getByText("Shipping Methods")).toBeInTheDocument();
       expect(screen.getByText("Click to filter by method")).toBeInTheDocument();
@@ -219,7 +307,13 @@ describe("WorldMapDiagram", () => {
 
     it("allows clicking on shipping methods", async () => {
       const user = userEvent.setup();
-      render(<WorldMapDiagram />);
+      render(
+        <WorldMapDiagram
+          nodeDataArray={mockNodeDataArray}
+          linkDataArray={mockLinkDataArray}
+          loadCityData={mockLoadCityData}
+        />
+      );
 
       const truckMethod = screen.getByText("Truck (Same Country)");
       await user.click(truckMethod);
@@ -230,7 +324,13 @@ describe("WorldMapDiagram", () => {
 
   describe("Node Size Controls", () => {
     it("shows node size slider with disabled state when no node is selected", () => {
-      render(<WorldMapDiagram />);
+      render(
+        <WorldMapDiagram
+          nodeDataArray={mockNodeDataArray}
+          linkDataArray={mockLinkDataArray}
+          loadCityData={mockLoadCityData}
+        />
+      );
 
       expect(screen.getByText("Node Size")).toBeInTheDocument();
       expect(
@@ -244,7 +344,13 @@ describe("WorldMapDiagram", () => {
     });
 
     it("shows link thickness slider with disabled state when no link is selected", () => {
-      render(<WorldMapDiagram />);
+      render(
+        <WorldMapDiagram
+          nodeDataArray={mockNodeDataArray}
+          linkDataArray={mockLinkDataArray}
+          loadCityData={mockLoadCityData}
+        />
+      );
 
       expect(screen.getByText("Link Thickness")).toBeInTheDocument();
       expect(
@@ -260,7 +366,13 @@ describe("WorldMapDiagram", () => {
 
   describe("Zoom Controls", () => {
     it("renders zoom control buttons", () => {
-      render(<WorldMapDiagram />);
+      render(
+        <WorldMapDiagram
+          nodeDataArray={mockNodeDataArray}
+          linkDataArray={mockLinkDataArray}
+          loadCityData={mockLoadCityData}
+        />
+      );
 
       expect(screen.getByTestId("zoom-in")).toBeInTheDocument();
       expect(screen.getByTestId("zoom-out")).toBeInTheDocument();
@@ -270,7 +382,13 @@ describe("WorldMapDiagram", () => {
 
     it("allows clicking zoom buttons", async () => {
       const user = userEvent.setup();
-      render(<WorldMapDiagram />);
+      render(
+        <WorldMapDiagram
+          nodeDataArray={mockNodeDataArray}
+          linkDataArray={mockLinkDataArray}
+          loadCityData={mockLoadCityData}
+        />
+      );
 
       const zoomInButton = screen.getByTestId("zoom-in");
       await user.click(zoomInButton);
@@ -281,7 +399,13 @@ describe("WorldMapDiagram", () => {
 
   describe("Accessibility", () => {
     it("has proper form controls", () => {
-      render(<WorldMapDiagram />);
+      render(
+        <WorldMapDiagram
+          nodeDataArray={mockNodeDataArray}
+          linkDataArray={mockLinkDataArray}
+          loadCityData={mockLoadCityData}
+        />
+      );
 
       expect(screen.getByTestId("search-input")).toBeInTheDocument();
       expect(screen.getByTestId("link-toggle")).toBeInTheDocument();
@@ -289,7 +413,13 @@ describe("WorldMapDiagram", () => {
     });
 
     it("has keyboard accessible elements", () => {
-      render(<WorldMapDiagram />);
+      render(
+        <WorldMapDiagram
+          nodeDataArray={mockNodeDataArray}
+          linkDataArray={mockLinkDataArray}
+          loadCityData={mockLoadCityData}
+        />
+      );
 
       const searchInput = screen.getByTestId("search-input");
       const linkToggle = screen.getByTestId("link-toggle");
@@ -303,7 +433,13 @@ describe("WorldMapDiagram", () => {
 
   describe("Component Structure", () => {
     it("renders with proper test IDs", () => {
-      render(<WorldMapDiagram />);
+      render(
+        <WorldMapDiagram
+          nodeDataArray={mockNodeDataArray}
+          linkDataArray={mockLinkDataArray}
+          loadCityData={mockLoadCityData}
+        />
+      );
 
       expect(screen.getByTestId("world-map-diagram")).toBeInTheDocument();
       expect(screen.getByTestId("node-details-card")).toBeInTheDocument();

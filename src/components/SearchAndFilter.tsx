@@ -122,10 +122,6 @@ export const SearchAndFilter = memo(function SearchAndFilter() {
             node.visible = true;
 
             setSearchTerm(selectedCityData.value);
-          } else {
-            console.log("Node not found for city:", selectedCityData.city);
-            console.log("Looking for key:", selectedCityData.city.id);
-            console.log("Available nodes:", diagram.nodes.count);
           }
         }
       }

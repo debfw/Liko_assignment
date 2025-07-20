@@ -93,14 +93,11 @@ export const LinkControls = memo(function LinkControls({
     return methodMap[selectedLinkData.method] || selectedLinkData.method;
   }, [selectedLinkData]);
 
-  const formattedDistance = useMemo(() => {
-    if (!selectedLinkData) return "";
-    return `${selectedLinkData.distance?.toFixed(0)} km`;
-  }, [selectedLinkData]);
+  const formattedDistance = selectedLinkData
+    ? `${selectedLinkData.distance?.toFixed(0)} km`
+    : "";
 
-  const opacityPercentage = useMemo(() => {
-    return Math.round(linkOpacity * 100);
-  }, [linkOpacity]);
+  const opacityPercentage = Math.round(linkOpacity * 100);
 
   return (
     <Stack gap={theme.spacing.xs}>
