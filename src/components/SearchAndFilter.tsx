@@ -7,6 +7,14 @@ import { useMemo, useCallback, memo } from "react";
 import type { City } from "../types/gojs-types";
 import * as go from "gojs";
 
+const SHIPPING_METHOD_OPTIONS = [
+  { value: "truck", label: "Truck (Same Country)" },
+  { value: "airplane", label: "Air (Same Continent)" },
+  { value: "airplane-express", label: "Express Air" },
+  { value: "ship", label: "Ship (Cross Ocean)" },
+  { value: "ship-express", label: "Express Ship" },
+];
+
 export const SearchAndFilter = memo(function SearchAndFilter() {
   const theme = useMantineTheme();
   const {
@@ -18,10 +26,7 @@ export const SearchAndFilter = memo(function SearchAndFilter() {
 
   const { diagram, setSelectedCity } = useDiagramStore();
 
-  const searchTermLower = useMemo(
-    () => searchTerm?.toLowerCase() || "",
-    [searchTerm]
-  );
+  const searchTermLower = searchTerm?.toLowerCase() || "";
 
   const autocompleteData = useMemo(() => {
     if (!searchTermLower || searchTermLower.length === 0) return [];
@@ -128,17 +133,6 @@ export const SearchAndFilter = memo(function SearchAndFilter() {
     [autocompleteData, diagram, setSelectedCity, setSearchTerm, highlightNode]
   );
 
-  // Memoize shipping method options
-  const shippingMethodOptions = useMemo(
-    () => [
-      { value: "truck", label: "Truck (Same Country)" },
-      { value: "airplane", label: "Air (Same Continent)" },
-      { value: "airplane-express", label: "Express Air" },
-      { value: "ship", label: "Ship (Cross Ocean)" },
-      { value: "ship-express", label: "Express Ship" },
-    ],
-    []
-  );
 
   return (
     <>
@@ -167,7 +161,7 @@ export const SearchAndFilter = memo(function SearchAndFilter() {
           </Text>
         }
         placeholder="Select shipping method"
-        data={shippingMethodOptions}
+        data={SHIPPING_METHOD_OPTIONS}
         value={selectedShippingMethod}
         onChange={setSelectedShippingMethod}
         clearable
