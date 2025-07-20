@@ -29,49 +29,43 @@ export const LinkControls = memo(function LinkControls({
     setSelectedLinkThickness,
   } = useUIControlsStore();
 
-  const opacitySliderConfig = useMemo(
-    () => ({
-      min: 0,
-      max: 1,
-      step: 0.1,
-      marks: [
-        { value: 0, label: "0%" },
-        { value: 0.5, label: "50%" },
-        { value: 1, label: "100%" },
-      ],
-      styles: {
-        markLabel: {
-          fontSize: 10,
-          marginTop: 5,
-          color: theme.other?.keyColor || theme.colors.gray[4],
-        },
-        root: { marginBottom: 16 },
+  const opacitySliderConfig = {
+    min: 0,
+    max: 1,
+    step: 0.1,
+    marks: [
+      { value: 0, label: "0%" },
+      { value: 0.5, label: "50%" },
+      { value: 1, label: "100%" },
+    ],
+    styles: {
+      markLabel: {
+        fontSize: 10,
+        marginTop: 5,
+        color: theme.other?.keyColor || theme.colors.gray[4],
       },
-    }),
-    [theme]
-  );
+      root: { marginBottom: 16 },
+    },
+  };
 
-  const thicknessSliderConfig = useMemo(
-    () => ({
-      min: 1,
-      max: 10,
-      step: 1,
-      marks: [
-        { value: 1, label: "1px" },
-        { value: 5, label: "5px" },
-        { value: 10, label: "10px" },
-      ],
-      styles: {
-        markLabel: {
-          fontSize: 10,
-          marginTop: 5,
-          color: theme.other?.keyColor || theme.colors.gray[4],
-        },
-        root: { marginBottom: 16 },
+  const thicknessSliderConfig = {
+    min: 1,
+    max: 10,
+    step: 1,
+    marks: [
+      { value: 1, label: "1px" },
+      { value: 5, label: "5px" },
+      { value: 10, label: "10px" },
+    ],
+    styles: {
+      markLabel: {
+        fontSize: 10,
+        marginTop: 5,
+        color: theme.other?.keyColor || theme.colors.gray[4],
       },
-    }),
-    [theme]
-  );
+      root: { marginBottom: 16 },
+    },
+  };
 
   const handleShowLinksChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {

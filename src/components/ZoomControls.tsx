@@ -15,7 +15,9 @@ interface ZoomControlsProps {
   onReset: () => Promise<void>;
 }
 
-export const ZoomControls = memo(function ZoomControls({ onReset }: ZoomControlsProps) {
+export const ZoomControls = memo(function ZoomControls({
+  onReset,
+}: ZoomControlsProps) {
   const { diagram } = useDiagramStore();
   const {
     isDraggingEnabled,
@@ -26,12 +28,11 @@ export const ZoomControls = memo(function ZoomControls({ onReset }: ZoomControls
     setRelinkingEnabled,
   } = useInteractionStore();
 
-  // Memoize all handlers to prevent re-renders
-  const handleZoomToFit = useCallback(() => {
+  const handleZoomToFit = () => {
     if (diagram) {
       diagram.zoomToFit();
     }
-  }, [diagram]);
+  };
 
   const handleToggleDragging = useCallback(() => {
     if (!isDraggingEnabled) {
@@ -48,7 +49,12 @@ export const ZoomControls = memo(function ZoomControls({ onReset }: ZoomControls
       setDraggingEnabled(false);
       alert("Node dragging has been disabled");
     }
-  }, [isDraggingEnabled, setDraggingEnabled, setLinkingEnabled, setRelinkingEnabled]);
+  }, [
+    isDraggingEnabled,
+    setDraggingEnabled,
+    setLinkingEnabled,
+    setRelinkingEnabled,
+  ]);
 
   const handleToggleLinking = useCallback(() => {
     if (!isLinkingEnabled) {
@@ -65,7 +71,12 @@ export const ZoomControls = memo(function ZoomControls({ onReset }: ZoomControls
       setLinkingEnabled(false);
       alert("Link creation has been disabled");
     }
-  }, [isLinkingEnabled, setDraggingEnabled, setLinkingEnabled, setRelinkingEnabled]);
+  }, [
+    isLinkingEnabled,
+    setDraggingEnabled,
+    setLinkingEnabled,
+    setRelinkingEnabled,
+  ]);
 
   const handleToggleRelinking = useCallback(() => {
     if (!isRelinkingEnabled) {
@@ -82,7 +93,12 @@ export const ZoomControls = memo(function ZoomControls({ onReset }: ZoomControls
       setRelinkingEnabled(false);
       alert("Link relinking has been disabled");
     }
-  }, [isRelinkingEnabled, setDraggingEnabled, setLinkingEnabled, setRelinkingEnabled]);
+  }, [
+    isRelinkingEnabled,
+    setDraggingEnabled,
+    setLinkingEnabled,
+    setRelinkingEnabled,
+  ]);
 
   return (
     <Group justify="space-between">

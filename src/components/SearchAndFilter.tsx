@@ -13,7 +13,7 @@ const SHIPPING_METHOD_OPTIONS = [
   { value: "airplane-express", label: "Express Air" },
   { value: "ship", label: "Ship (Cross Ocean)" },
   { value: "ship-express", label: "Express Ship" },
-];
+] as const;
 
 export const SearchAndFilter = memo(function SearchAndFilter() {
   const theme = useMantineTheme();
@@ -132,7 +132,6 @@ export const SearchAndFilter = memo(function SearchAndFilter() {
     },
     [autocompleteData, diagram, setSelectedCity, setSearchTerm, highlightNode]
   );
-
 
   return (
     <>

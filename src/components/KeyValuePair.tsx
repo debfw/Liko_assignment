@@ -19,22 +19,16 @@ export const KeyValuePair = memo(function KeyValuePair({
 }: KeyValuePairProps) {
   const theme = useMantineTheme();
 
-  const labelStyle = useMemo(
-    () => ({
-      minWidth: labelWidth,
-      letterSpacing: 0.2,
-      fontWeight: 600,
-    }),
-    [labelWidth]
-  );
+  const labelStyle = {
+    minWidth: labelWidth,
+    letterSpacing: 0.2,
+    fontWeight: 600,
+  };
 
-  const valueStyle = useMemo(
-    () => ({
-      fontWeight: 500,
-      letterSpacing: 0.1,
-    }),
-    []
-  );
+  const valueStyle = {
+    fontWeight: 500,
+    letterSpacing: 0.1,
+  };
 
   const keyColor = theme.other?.keyColor || "dimmed";
   const valueColor = theme.other?.valueColor || "white";

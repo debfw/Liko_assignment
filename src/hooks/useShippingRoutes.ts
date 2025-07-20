@@ -5,33 +5,30 @@ import { City, ShippingLink } from "../types";
 export const useShippingRoutes = (diagram: go.Diagram | null) => {
   const [shippingLinks, setShippingLinks] = useState<ShippingLink[]>([]);
 
-  const createShippingLink = useCallback(
-    (fromCity: City, toCity: City): ShippingLink => {
-      const methods: Array<ShippingLink["category"]> = [
-        "truck",
-        "airplane",
-        "ship",
-      ];
-      const category = methods[Math.floor(Math.random() * methods.length)];
+  const createShippingLink = (fromCity: City, toCity: City): ShippingLink => {
+    const methods: Array<ShippingLink["category"]> = [
+      "truck",
+      "airplane",
+      "ship",
+    ];
+    const category = methods[Math.floor(Math.random() * methods.length)];
 
-      return {
-        from: fromCity.id,
-        to: toCity.id,
-        category: category,
-        text: `${fromCity.city} to ${toCity.city}`,
-        strokeDashArray: category === "airplane" ? [4, 2] : null,
-        stroke:
-          category === "airplane"
-            ? "#ff6600"
-            : category === "ship"
-            ? "#0066ff"
-            : "#666666",
-        strokeWidth: 2,
-        opacity: 1,
-      };
-    },
-    []
-  );
+    return {
+      from: fromCity.id,
+      to: toCity.id,
+      category: category,
+      text: `${fromCity.city} to ${toCity.city}`,
+      strokeDashArray: category === "airplane" ? [4, 2] : null,
+      stroke:
+        category === "airplane"
+          ? "#ff6600"
+          : category === "ship"
+          ? "#0066ff"
+          : "#666666",
+      strokeWidth: 2,
+      opacity: 1,
+    };
+  };
 
   const addShippingRoute = useCallback(
     (fromCity: City, toCity: City) => {

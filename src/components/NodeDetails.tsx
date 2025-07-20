@@ -19,25 +19,22 @@ export const NodeDetails = memo(function NodeDetails({
   const theme = useMantineTheme();
   const valueColor = theme.other?.valueColor || "white";
 
-  const sliderConfig = useMemo(
-    () => ({
-      min: 50,
-      max: 250,
-      step: 10,
-      marks: [
-        { value: 50, label: "50%" },
-        { value: 100, label: "100%" },
-        { value: 150, label: "150%" },
-        { value: 200, label: "200%" },
-        { value: 250, label: "250%" },
-      ],
-      styles: {
-        markLabel: { fontSize: 10, marginTop: 5, color: valueColor },
-        root: { marginTop: 8, marginBottom: 24 },
-      },
-    }),
-    [valueColor]
-  );
+  const sliderConfig = {
+    min: 50,
+    max: 250,
+    step: 10,
+    marks: [
+      { value: 50, label: "50%" },
+      { value: 100, label: "100%" },
+      { value: 150, label: "150%" },
+      { value: 200, label: "200%" },
+      { value: 250, label: "250%" },
+    ],
+    styles: {
+      markLabel: { fontSize: 10, marginTop: 5, color: valueColor },
+      root: { marginTop: 8, marginBottom: 24 },
+    },
+  };
 
   const handleSliderChange = useCallback(
     (value: number) => {
@@ -46,22 +43,19 @@ export const NodeDetails = memo(function NodeDetails({
     [onNodeSizeChange]
   );
 
-  const sliderLabel = useCallback(
-    (value: number) => (
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          width: "100%",
-          marginBottom: 8,
-          color: valueColor,
-        }}
-      >
-        <span>Node Size</span>
-        <span style={{ minWidth: 45, textAlign: "right" }}>{value}%</span>
-      </div>
-    ),
-    [valueColor]
+  const sliderLabel = (value: number) => (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        width: "100%",
+        marginBottom: 8,
+        color: valueColor,
+      }}
+    >
+      <span>Node Size</span>
+      <span style={{ minWidth: 45, textAlign: "right" }}>{value}%</span>
+    </div>
   );
 
   const cityCoordinates = useMemo(() => {
