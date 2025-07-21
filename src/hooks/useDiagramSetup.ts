@@ -1,76 +1,44 @@
 import { useEffect, useRef } from "react";
 import * as go from "gojs";
 import type { GoJSCityNodeData } from "../types/gojs-types";
-import { useDiagramStore } from "../stores";
+import {
+  useContextMenuStore,
+  useDiagramStore,
+  useSaveStateStore,
+  useUIControlsStore,
+} from "@/stores";
 
 interface DiagramSetupConfig {
-  diagramRef: React.RefObject<HTMLDivElement | null>;
+  diagramContainerRef: React.RefObject<HTMLDivElement | null>;
   nodeDataArray: GoJSCityNodeData[];
   linkDataArray: go.GraphLinksModel["linkDataArray"];
-  linkOpacity: number;
-  onCitySelect: (city: GoJSCityNodeData | null) => void;
-  onLinkSelect: (link: go.Link | null) => void;
-  onNodeSizeChange: (size: number) => void;
-  onLinkThicknessChange: (thickness: number) => void;
   selectedCity?: GoJSCityNodeData | null;
-  triggerSave: () => void;
-  showContextMenu: (config: {
-    x: number;
-    y: number;
-    type: "node" | "link";
-    target: go.Node | go.Link;
-  }) => void;
-  hideContextMenu: () => void;
+  setNodeSize: (size: number) => void;
+  setSelectedCity: (city: GoJSCityNodeData | null) => void;
 }
 
 export function useDiagramSetup({
-  diagramRef,
+  diagramContainerRef,
   nodeDataArray,
   linkDataArray,
-  linkOpacity,
-  onCitySelect,
-  onLinkSelect,
-  onNodeSizeChange,
-  onLinkThicknessChange,
+  setNodeSize,
   selectedCity,
-  triggerSave,
-  showContextMenu,
-  hideContextMenu,
+  setSelectedCity,
 }: DiagramSetupConfig) {
-  const { setDiagram } = useDiagramStore();
+  const { linkOpacity, setSelectedLinkThickness } = useUIControlsStore();
 
+  const { setSelectedLink, setDiagram } = useDiagramStore();
+
+  const { triggerSave } = useSaveStateStore();
+  const { showContextMenu, hideContextMenu } = useContextMenuStore();
   // Store initial linkOpacity to avoid re-creating diagram when it changes
   const initialLinkOpacityRef = useRef(linkOpacity);
 
-  // Store callbacks in refs to avoid recreating diagram when they change
-  const callbacksRef = useRef({
-    onCitySelect,
-    onLinkSelect,
-    onNodeSizeChange,
-    onLinkThicknessChange,
-    triggerSave,
-    showContextMenu,
-    hideContextMenu,
-  });
-
-  // Update callbacks ref on each render
   useEffect(() => {
-    callbacksRef.current = {
-      onCitySelect,
-      onLinkSelect,
-      onNodeSizeChange,
-      onLinkThicknessChange,
-      triggerSave,
-      showContextMenu,
-      hideContextMenu,
-    };
-  });
-
-  useEffect(() => {
-    if (!diagramRef.current) return;
+    if (!diagramContainerRef.current) return;
 
     const $ = go.GraphObject.make;
-    const myDiagram = new go.Diagram(diagramRef.current, {
+    const myDiagram = new go.Diagram(diagramContainerRef.current, {
       "animationManager.isEnabled": false,
       "undoManager.isEnabled": false,
       layout: $(go.Layout),
@@ -156,7 +124,7 @@ export function useDiagramSetup({
             const goNode = node as go.Node;
             const rect = myDiagram.div?.getBoundingClientRect();
             if (rect) {
-              callbacksRef.current.showContextMenu({
+              showContextMenu({
                 x: (e.event as MouseEvent).clientX - rect.left,
                 y: (e.event as MouseEvent).clientY - rect.top,
                 type: "node",
@@ -192,8 +160,8 @@ export function useDiagramSetup({
               : null,
           };
 
-          callbacksRef.current.onCitySelect({ ...cityData });
-          callbacksRef.current.triggerSave();
+          setSelectedCity({ ...cityData });
+          triggerSave();
 
           const shape = goNode.findObject("SHAPE") as go.Shape;
           const label = goNode.findObject("LABEL") as go.TextBlock;
@@ -201,9 +169,7 @@ export function useDiagramSetup({
             const baseSize = data.size || 10;
             const currentSize = shape.width;
             const sizeMultiplier = currentSize / baseSize;
-            callbacksRef.current.onNodeSizeChange(
-              Math.max(0.5, Math.min(2.5, sizeMultiplier))
-            );
+            setNodeSize(Math.max(0.5, Math.min(2.5, sizeMultiplier)));
           }
 
           if (label) {
@@ -214,13 +180,11 @@ export function useDiagramSetup({
             const baseFontSize = 10;
             const fontMultiplier = fontSize / baseFontSize;
             if (fontMultiplier !== 1) {
-              callbacksRef.current.onNodeSizeChange(
-                Math.max(0.5, Math.min(2.5, fontMultiplier))
-              );
+              setNodeSize(Math.max(0.5, Math.min(2.5, fontMultiplier)));
             }
           }
 
-          callbacksRef.current.onLinkSelect(null);
+          setSelectedLink(null);
 
           // Update node styling
           myDiagram.nodes.each((n) => {
@@ -365,7 +329,7 @@ export function useDiagramSetup({
             const goLink = link as go.Link;
             const rect = myDiagram.div?.getBoundingClientRect();
             if (rect) {
-              callbacksRef.current.showContextMenu({
+              showContextMenu({
                 x: (e.event as MouseEvent).clientX - rect.left,
                 y: (e.event as MouseEvent).clientY - rect.top,
                 type: "link",
@@ -377,17 +341,15 @@ export function useDiagramSetup({
         click: (e, link) => {
           const goLink = link as go.Link;
 
-          callbacksRef.current.onLinkSelect(goLink);
+          setSelectedLink(goLink);
 
           const linkShape = goLink.findObject("LINKSHAPE") as go.Shape;
           if (linkShape) {
             const currentThickness = linkShape.strokeWidth - 2;
-            callbacksRef.current.onLinkThicknessChange(
-              Math.max(1, currentThickness)
-            );
+            setSelectedLinkThickness(Math.max(1, currentThickness));
           }
 
-          callbacksRef.current.onCitySelect(null);
+          setSelectedCity(null);
 
           // Update link styling
           myDiagram.links.each((link) => {
@@ -503,8 +465,8 @@ export function useDiagramSetup({
         return;
       }
 
-      callbacksRef.current.onCitySelect(null);
-      callbacksRef.current.onLinkSelect(null);
+      setSelectedCity(null);
+      setSelectedLink(null);
 
       myDiagram.nodes.each((n) => {
         const nNode = n as go.Node;
@@ -536,7 +498,7 @@ export function useDiagramSetup({
           m.set(link.data, "opacity", 1);
           m.set(link.data, "label", "New Route");
         });
-        callbacksRef.current.triggerSave();
+        triggerSave();
       }
     });
 
@@ -571,13 +533,13 @@ export function useDiagramSetup({
           alert("Shipping route successfully updated!");
         }
 
-        callbacksRef.current.triggerSave();
+        triggerSave();
       }
     });
 
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
-      callbacksRef.current.hideContextMenu();
+      hideContextMenu();
     };
 
     document.addEventListener("contextmenu", handleContextMenu);
@@ -590,5 +552,18 @@ export function useDiagramSetup({
       }
       document.removeEventListener("contextmenu", handleContextMenu);
     };
-  }, [nodeDataArray, linkDataArray, setDiagram, diagramRef, selectedCity]); // Other callbacks stored in refs
+  }, [
+    nodeDataArray,
+    linkDataArray,
+    setDiagram,
+    diagramContainerRef,
+    selectedCity,
+    hideContextMenu,
+    setNodeSize,
+    setSelectedCity,
+    setSelectedLink,
+    setSelectedLinkThickness,
+    showContextMenu,
+    triggerSave,
+  ]);
 }

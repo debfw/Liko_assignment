@@ -28,7 +28,7 @@ import { useDiagramStyling } from "../hooks/useDiagramStyling";
 interface WorldMapDiagramProps {
   nodeDataArray: GoJSCityNodeData[];
   linkDataArray: go.GraphLinksModel["linkDataArray"];
-  loadCityData: (diagram: go.Diagram) => Promise<void>;
+  loadCityData: () => Promise<void>;
 }
 
 const WorldMapDiagram = memo(function WorldMapDiagram({
@@ -36,7 +36,7 @@ const WorldMapDiagram = memo(function WorldMapDiagram({
   linkDataArray,
   loadCityData,
 }: WorldMapDiagramProps) {
-  const diagramRef = useRef<HTMLDivElement>(null);
+  const diagramContainerRef = useRef<HTMLDivElement>(null);
   const { isRelinkingEnabled } = useInteractionStore();
 
   const [selectedCity, setSelectedCity] = useState<GoJSCityNodeData | null>(
@@ -63,7 +63,7 @@ const WorldMapDiagram = memo(function WorldMapDiagram({
     setSelectedLinkThickness,
   } = useUIControlsStore();
 
-  const { showContextMenu, hideContextMenu } = useContextMenuStore();
+  const { hideContextMenu } = useContextMenuStore();
 
   const {
     isDraggingEnabled,
@@ -77,18 +77,12 @@ const WorldMapDiagram = memo(function WorldMapDiagram({
 
   // Setup diagram
   useDiagramSetup({
-    diagramRef,
+    diagramContainerRef,
     nodeDataArray,
     linkDataArray,
-    linkOpacity,
-    onCitySelect: setSelectedCity,
-    onLinkSelect: setSelectedLink,
-    onNodeSizeChange: setNodeSize,
-    onLinkThicknessChange: setSelectedLinkThickness,
+    setNodeSize,
     selectedCity,
-    triggerSave,
-    showContextMenu,
-    hideContextMenu,
+    setSelectedCity,
   });
 
   // Setup tools
@@ -131,6 +125,7 @@ const WorldMapDiagram = memo(function WorldMapDiagram({
         diagram.startTransaction("resize node");
         diagram.nodes.each((node) => {
           const goNode = node as go.Node;
+
           if (goNode.data.key === selectedCity.key) {
             const shape = goNode.findObject("SHAPE") as go.Shape;
             const label = goNode.findObject("LABEL") as go.TextBlock;
@@ -160,13 +155,11 @@ const WorldMapDiagram = memo(function WorldMapDiagram({
   );
 
   const resetView = useCallback(async () => {
-    if (!diagram) return;
-
     setRelinkingEnabled(false);
     setDraggingEnabled(false);
     setLinkingEnabled(false);
 
-    loadCityData(diagram);
+    loadCityData();
 
     setSelectedCity(null);
     setSelectedLink(null);
@@ -181,7 +174,6 @@ const WorldMapDiagram = memo(function WorldMapDiagram({
 
     hideContextMenu();
   }, [
-    diagram,
     loadCityData,
     setSearchTerm,
     setSelectedShippingMethod,
@@ -287,7 +279,7 @@ const WorldMapDiagram = memo(function WorldMapDiagram({
         </Box>
 
         <Box
-          ref={diagramRef}
+          ref={diagramContainerRef}
           bg="dark.9"
           style={{ flex: 1, margin: "0 20px 20px 20px" }}
         />

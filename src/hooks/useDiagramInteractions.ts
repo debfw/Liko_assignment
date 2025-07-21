@@ -7,9 +7,7 @@ import {
 } from "../stores";
 import type { City } from "../types/gojs-types";
 
-export const useDiagramInteractions = (
-  onLinkCreated?: (fromCity: City, toCity: City) => void
-) => {
+export const useDiagramInteractions = () => {
   const { diagram, setSelectedCity } = useDiagramStore();
   const { showContextMenu } = useContextMenuStore();
   const { isDraggingEnabled, isLinkingEnabled, isRelinkingEnabled } =
@@ -25,36 +23,7 @@ export const useDiagramInteractions = (
     if (!diagram) return;
 
     diagram.toolManager.linkingTool.isEnabled = isLinkingEnabled;
-
-    let linkDrawnHandler: ((e: go.DiagramEvent) => void) | null = null;
-
-    if (isLinkingEnabled && onLinkCreated) {
-      diagram.toolManager.linkingTool.doActivate = function () {
-        const tool = this as go.LinkingTool;
-        go.LinkingTool.prototype.doActivate.call(tool);
-      };
-
-      linkDrawnHandler = (e: go.DiagramEvent) => {
-        const link = e.subject as go.Link;
-        if (link && link.fromNode && link.toNode) {
-          const fromCity = link.fromNode.data as City;
-          const toCity = link.toNode.data as City;
-
-          diagram.remove(link);
-
-          onLinkCreated(fromCity, toCity);
-        }
-      };
-
-      diagram.addDiagramListener("LinkDrawn", linkDrawnHandler);
-    }
-
-    return () => {
-      if (linkDrawnHandler) {
-        diagram.removeDiagramListener("LinkDrawn", linkDrawnHandler);
-      }
-    };
-  }, [diagram, isLinkingEnabled, onLinkCreated]);
+  }, [diagram, isLinkingEnabled]);
 
   useEffect(() => {
     if (!diagram) return;

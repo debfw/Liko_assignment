@@ -47,7 +47,7 @@ export default function Home() {
         return {
           ...city,
           key: city.id,
-          region: region,
+          region,
           color: regionColors[region],
           size: getNodeSize(city.population),
           location: new go.Point(coords.x, coords.y),
