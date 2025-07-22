@@ -376,6 +376,14 @@ export function useDiagramSetup({
               shape.scale = 1;
             }
           });
+
+          // Update link label visibility
+          myDiagram.links.each((linkItem) => {
+            const label = linkItem.findObject("LABEL");
+            if (label) {
+              label.visible = linkItem === goLink;
+            }
+          });
         },
         mouseEnter: (e, link) => {
           const goLink = link as go.Link;
